@@ -4,7 +4,7 @@ import { haversineKm } from "@/lib/data";
 import { usePact } from "@/lib/store";
 import type { Place, PlaceKind } from "@/lib/types";
 import { useEffect } from "react";
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 function FlyTo({ lat, lng }: { lat: number; lng: number }) {
@@ -23,6 +23,7 @@ export default function MapCanvas({
   here,
   flyTo,
   youLabel,
+  track,
 }: {
   filter: "all" | PlaceKind;
   selectedId?: string;
@@ -31,10 +32,12 @@ export default function MapCanvas({
   here: { lat: number; lng: number };
   flyTo?: { lat: number; lng: number };
   youLabel?: string;
+  track?: Array<{ lat: number; lng: number }>;
 }) {
   const { storeId } = usePact();
   const shown = places.filter((p) => (filter === "all" ? true : p.kind === filter));
   const target = flyTo ?? here;
+  const line = (track ?? []).map((p) => [p.lat, p.lng] as [number, number]);
 
   return (
     <div className="h-full min-h-[420px]">
@@ -50,6 +53,7 @@ export default function MapCanvas({
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       />
       <FlyTo lat={target.lat} lng={target.lng} />
+      {line.length > 1 ? <Polyline positions={line} pathOptions={{ color: "#d6ff3f", weight: 4, opacity: 0.9 }} /> : null}
       <CircleMarker
         center={[here.lat, here.lng]}
         radius={12}

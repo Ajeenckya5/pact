@@ -7,9 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "mcp": "node mcp/server.mjs"
+    "mcp": "node mcp/server.mjs",
+    "export": "node scripts/static-export.mjs",
+    "build:pages": "PACT_BASE_PATH=/pact node scripts/static-export.mjs",
+    "build:apk": "node scripts/static-export.mjs && npx cap sync android",
+    "apk": "npm run build:apk && npm run apk:assemble",
+    "apk:assemble": "cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor-community/bluetooth-le": "^8.3.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/geolocation": "^8.2.2",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.45.0",
@@ -20,6 +29,8 @@
     "zod": "^4.6.2"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^20",

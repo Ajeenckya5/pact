@@ -3,35 +3,38 @@
 import { Button, Card, Chip, Eyebrow } from "@/components/ui";
 import { WEARABLES } from "@/lib/data";
 import { cn } from "@/lib/cn";
-import { liveGet } from "@/lib/use-live";
+import { useLiveTrack } from "@/lib/live-track-context";
+import { clientFeeds, type ClientFeed } from "@/lib/live-client";
+import { onNativeApp, runtimeLabel } from "@/lib/runtime";
 import { useLiveBody } from "@/lib/wearable-live-context";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-
-type Feed = {
-  id: string;
-  name: string;
-  use: string;
-  url: string;
-  key: boolean;
-  ok: boolean;
-  ms: number;
-};
 
 export default function WearablesPage() {
   const { body, links, bluetooth, pairDevice, disconnectDevice } = useLiveBody();
+  const track = useLiveTrack();
   const [os, setOs] = useState<"all" | "ios" | "android">("all");
-  const [feeds, setFeeds] = useState<Feed[]>([]);
+  const [feeds, setFeeds] = useState<ClientFeed[]>([]);
   const list = useMemo(
     () => WEARABLES.filter((w) => os === "all" || w.platforms.includes(os)),
     [os],
   );
   const paired = links.filter((l) => l.connected);
   const canPair = bluetooth.available !== false;
+  const where = runtimeLabel();
 
   useEffect(() => {
-    liveGet<{ feeds: Feed[] }>("/api/feeds")
-      .then((d) => setFeeds(d.feeds ?? []))
-      .catch(() => setFeeds([]));
+    let alive = true;
+    clientFeeds()
+      .then((d) => {
+        if (alive) setFeeds(d.feeds ?? []);
+      })
+      .catch(() => {
+        if (alive) setFeeds([]);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   return (
@@ -44,18 +47,28 @@ export default function WearablesPage() {
           </Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight">Pair the strap. Pact does the rest.</h1>
           <p className="mt-3 max-w-2xl text-mute">
-            Live numbers come only from the Bluetooth device you pick in the system sheet. Pact does not invent WHOOP,
-            Oura, Apple Watch, or Garmin streams in the background.
+            You are on {where}. Live HR / cadence / power come only from the Bluetooth device you pair here — the APK
+            uses native BLE, GitHub Pages uses Web Bluetooth in Chrome. WHOOP, Oura, Apple Watch, and Health apps do
+            not stream into a website. Pair a Polar / Garmin HRM / Wahoo / trainer that speaks GATT.
           </p>
         </div>
-        <Button onClick={() => void pairDevice()} disabled={!canPair || bluetooth.pairing}>
-          {bluetooth.pairing ? "Waiting for device…" : "Connect Bluetooth device"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void pairDevice()} disabled={!canPair || bluetooth.pairing}>
+            {bluetooth.pairing ? "Waiting for device…" : "Connect Bluetooth device"}
+          </Button>
+          <Link
+            href="/live"
+            className="inline-flex items-center justify-center rounded-full border border-line bg-white/5 px-4 py-2 text-sm font-medium text-cream hover:bg-white/10"
+          >
+            {track.tracking ? "Tracking…" : "Live track"}
+          </Link>
+        </div>
       </div>
       {bluetooth.available === false ? (
         <Card className="border-heat/40 p-4 text-sm text-mute">
-          This browser has no Web Bluetooth. Use Chrome or Edge on a laptop or Android phone. Safari on iPhone cannot
-          pair straps — Bluefy can.
+          {onNativeApp()
+            ? "Bluetooth is off or this phone cannot scan. Turn Bluetooth on, allow nearby devices, then tap Connect."
+            : "This browser has no Web Bluetooth. Use the Android APK, or Chrome / Edge on a laptop or Android phone. Safari on iPhone cannot pair."}
         </Card>
       ) : null}
       {bluetooth.error ? <p className="text-sm text-heat">{bluetooth.error}</p> : null}
@@ -166,11 +179,12 @@ export default function WearablesPage() {
       <Card className="p-6">
         <Eyebrow>What Bluetooth can and cannot do</Eyebrow>
         <p className="mt-3 max-w-3xl text-sm text-mute">
-          Pact talks GATT over Web Bluetooth: heart rate, RR/HRV, cadence, cycling power, running speed, indoor bike
-          (FTMS), battery, and SpO2 when the device exposes them. Polar H10, Garmin HRM, Wahoo TICKR, and most smart
-          trainers work. Apple Watch, Oura, HealthKit, and some WHOOP units only speak to their own apps — those tiles
-          stay listed so you know what to pair, but they do not get a fake stream. Pairing needs a user tap and HTTPS
-          (this localhost counts).
+          The Android APK uses native BLE (Nearby devices + Bluetooth). GitHub Pages and desktop Chrome use Web
+          Bluetooth. Both read the same GATT profiles: heart rate, RR/HRV, cadence, cycling power, running speed,
+          indoor bike (FTMS), battery, temp, SpO2 when the device exposes them. Polar H10, Garmin HRM, Wahoo TICKR,
+          and most smart trainers work. Apple Watch, Oura, HealthKit, Health Connect, and many WHOOP units only talk
+          to their own apps — Pact will not invent those streams. After you pair, open Track to record GPS + the live
+          sample from that one device.
         </p>
       </Card>
     </div>

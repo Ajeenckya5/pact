@@ -1,0 +1,54 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - name: Static export for Capacitor
+        env:
+          PACT_STATIC: "1"
+        run: node scripts/static-export.mjs
+      - run: npx cap sync android
+      - name: Assemble debug APK
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pact-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish sideload release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/Pact-debug.apk
+          gh release delete android-debug --yes || true
+          gh release create android-debug dist/Pact-debug.apk \
+            --title "Pact Android APK" \
+            --notes "Sideload this debug APK. Allow Nearby devices, Bluetooth, and Location. Pair a GATT strap (Polar / Garmin HRM / Wahoo), then open Track for live GPS + HR. GitHub Pages is a separate web build at https://ajeenckya5.github.io/pact/" \
+            --prerelease

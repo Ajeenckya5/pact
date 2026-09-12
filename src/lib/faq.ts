@@ -352,7 +352,13 @@ export const FAQS: FaqItem[] = [
     id: "wr-connect",
     category: "Pact",
     q: "Which wearables can I connect?",
-    a: "Tap Connect Bluetooth device on Wearables (or Overview). Chrome or Edge will show nearby BLE fitness radios — Polar, Garmin HRM, Wahoo, smart trainers, cadence sensors. Only that paired device streams. Apple Watch, Oura, HealthKit, and some WHOOP units do not get a fake feed. Safari on iPhone cannot pair — use Android Chrome or desktop.",
+    a: "On the Android APK: tap Connect Bluetooth device and allow Nearby devices (and Location on older Android). On GitHub Pages or desktop: Chrome or Edge Web Bluetooth. Only the GATT strap you pick streams HR/cadence/power. Apple Watch, Oura, HealthKit, Health Connect, and some WHOOP units do not. Then open Track to record GPS with those live samples.",
+  },
+  {
+    id: "pact-apk-pages",
+    category: "Pact",
+    q: "What's the difference between GitHub Pages and the APK?",
+    a: "GitHub Pages is the website (ajeenckya5.github.io/pact) — Chrome can pair BLE in that tab. The APK is a phone app with native Bluetooth and GPS. Same Pact, different container. Sideload Pact-debug.apk from GitHub Releases. WHOOP/Oura/Watch apps still do not dump their private databases into Pact.",
   },
   {
     id: "map-osm",

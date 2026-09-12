@@ -2,11 +2,13 @@
 
 import { Card, Eyebrow } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { useLiveTrack } from "@/lib/live-track-context";
 import { useLiveBody } from "@/lib/wearable-live-context";
 import Link from "next/link";
 
 export function WearableLiveStrip() {
   const { body, links, pairDevice, bluetooth } = useLiveBody();
+  const track = useLiveTrack();
   const paired = links.filter((l) => l.connected);
 
   return (
@@ -44,6 +46,9 @@ export function WearableLiveStrip() {
           >
             {bluetooth.pairing ? "Pairing…" : paired.length ? "Pair another" : "Connect Bluetooth"}
           </button>
+          <Link href="/live" className="self-center text-xs text-acid">
+            {track.tracking ? "Tracking…" : "Live track"}
+          </Link>
           <Link href="/wearables" className="self-center text-xs text-acid">
             Wearables
           </Link>

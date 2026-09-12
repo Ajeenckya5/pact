@@ -18,6 +18,7 @@ import {
   Menu,
   MessageCircle,
   Moon,
+  Navigation,
   Radio,
   Shield,
   ChefHat,
@@ -33,6 +34,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutGrid, group: "Live" },
+  { href: "/live", label: "Track", icon: Navigation, group: "Live" },
   { href: "/sleep", label: "Sleep", icon: Moon, group: "Body" },
   { href: "/calories", label: "Calories", icon: Utensils, group: "Body" },
   { href: "/water", label: "Water", icon: Droplets, group: "Body" },

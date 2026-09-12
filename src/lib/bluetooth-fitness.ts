@@ -1,16 +1,9 @@
-const SERVICES = [
-  "heart_rate",
-  "battery_service",
-  "cycling_speed_and_cadence",
-  "cycling_power",
-  "running_speed_and_cadence",
-  "fitness_machine",
-  "health_thermometer",
-  "pulse_oximeter",
-  "weight_scale",
-  "body_composition",
-  "device_information",
-] as const;
+import { BleClient, type BleDevice, type BleService } from "@capacitor-community/bluetooth-le";
+import { Capacitor } from "@capacitor/core";
+import { GATT_SERVICES, SERVICE_UUIDS, shortUuid } from "./ble-uuids";
+import { requestLocationAccess } from "./device-location";
+
+const SERVICES = Object.keys(GATT_SERVICES) as Array<keyof typeof GATT_SERVICES>;
 
 export const BRAND_PREFIXES: Record<string, string[]> = {
   polar: ["Polar", "H10", "H9", "OH1", "Verity", "Ignite", "Vantage", "Pacer", "Grit X"],
@@ -113,10 +106,18 @@ function bt(): BtNav["bluetooth"] {
 }
 
 export function bluetoothSupported() {
-  return Boolean(bt()?.requestDevice);
+  return onNative() || Boolean(bt()?.requestDevice);
 }
 
 export async function bluetoothAvailable() {
+  if (onNative()) {
+    try {
+      await BleClient.initialize({ androidNeverForLocation: true });
+      return await BleClient.isEnabled();
+    } catch {
+      return true;
+    }
+  }
   const api = bt();
   if (!api?.requestDevice) return false;
   if (!api.getAvailability) return true;
@@ -136,8 +137,11 @@ export function matchWearableId(name: string) {
 }
 
 function shortId(uuid: string) {
-  const m = uuid.toLowerCase().match(/^0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/);
-  return m ? m[1] : uuid.toLowerCase();
+  return shortUuid(uuid);
+}
+
+function onNative() {
+  return Capacitor.isNativePlatform();
 }
 
 function rmssd(rr: number[]) {
@@ -262,6 +266,7 @@ class FitnessRadio {
     if (existing) return existing;
     const onDisconnected = () => {
       const row = this.links.get(device.id);
+      if (row?.device.gatt) row.device.gatt.connected = false;
       if (row) row.sample = { ...row.sample, at: Date.now() };
       this.emit();
     };
@@ -276,6 +281,54 @@ class FitnessRadio {
     device.addEventListener("gattserverdisconnected", onDisconnected);
     this.links.set(device.id, row);
     return row;
+  }
+
+  private ingest(row: Internal, sid: string, cid: string, view: DataView) {
+    try {
+      const next = { ...row.sample, at: Date.now() };
+      if (cid === "2a37") {
+        const parsed = parseHr(view, row.rr);
+        next.hr = parsed.hr;
+        if (parsed.hrv) next.hrv = parsed.hrv;
+        row.profiles.add("heart rate");
+      } else if (cid === "2a19") {
+        next.battery = view.getUint8(0);
+        row.profiles.add("battery");
+      } else if (cid === "2a5b") {
+        const parsed = parseCsc(view, row.lastCrank);
+        row.lastCrank = parsed.last;
+        if (parsed.cadence != null) next.cadence = parsed.cadence;
+        row.profiles.add("cadence");
+      } else if (cid === "2a53") {
+        const parsed = parseRsc(view);
+        next.speedKmh = parsed.speedKmh;
+        next.cadence = parsed.cadence;
+        row.profiles.add("run");
+      } else if (cid === "2a63") {
+        next.power = parsePower(view);
+        row.profiles.add("power");
+      } else if (cid === "2ad2") {
+        const parsed = parseBike(view);
+        if (parsed.hr != null) next.hr = parsed.hr;
+        if (parsed.cadence != null) next.cadence = parsed.cadence;
+        if (parsed.power != null) next.power = parsed.power;
+        if (parsed.speedKmh != null) next.speedKmh = parsed.speedKmh;
+        row.profiles.add("bike");
+      } else if (cid === "2a1c" || cid === "2a6e") {
+        next.tempC = Math.round(parseTemp(view) * 10) / 10;
+        row.profiles.add("temp");
+      } else if (cid === "2a5f" || cid === "2a5e") {
+        next.spo2 = view.getUint16(1, true) / 100;
+        row.profiles.add("spo2");
+      } else if (sid === "180d") {
+        row.profiles.add("heart rate");
+      }
+      row.sample = next;
+      if (!row.wearableId) row.wearableId = matchWearableId(row.device.name || "");
+      this.emit();
+    } catch {
+      /* short payload */
+    }
   }
 
   private async bindServer(row: Internal, server: GattServer) {
@@ -301,63 +354,16 @@ class FitnessRadio {
       }
       for (const ch of chars) {
         const cid = shortId(ch.uuid);
-        const apply = (view: DataView) => {
-          try {
-            const next = { ...row.sample, at: Date.now() };
-          if (cid === "2a37") {
-            const parsed = parseHr(view, row.rr);
-            next.hr = parsed.hr;
-            if (parsed.hrv) next.hrv = parsed.hrv;
-            row.profiles.add("heart rate");
-          } else if (cid === "2a19") {
-            next.battery = view.getUint8(0);
-            row.profiles.add("battery");
-          } else if (cid === "2a5b") {
-            const parsed = parseCsc(view, row.lastCrank);
-            row.lastCrank = parsed.last;
-            if (parsed.cadence != null) next.cadence = parsed.cadence;
-            row.profiles.add("cadence");
-          } else if (cid === "2a53") {
-            const parsed = parseRsc(view);
-            next.speedKmh = parsed.speedKmh;
-            next.cadence = parsed.cadence;
-            row.profiles.add("run");
-          } else if (cid === "2a63") {
-            next.power = parsePower(view);
-            row.profiles.add("power");
-          } else if (cid === "2ad2") {
-            const parsed = parseBike(view);
-            if (parsed.hr != null) next.hr = parsed.hr;
-            if (parsed.cadence != null) next.cadence = parsed.cadence;
-            if (parsed.power != null) next.power = parsed.power;
-            if (parsed.speedKmh != null) next.speedKmh = parsed.speedKmh;
-            row.profiles.add("bike");
-          } else if (cid === "2a1c" || cid === "2a6e") {
-            next.tempC = Math.round(parseTemp(view) * 10) / 10;
-            row.profiles.add("temp");
-          } else if (cid === "2a5f" || cid === "2a5e") {
-            next.spo2 = view.getUint16(1, true) / 100;
-            row.profiles.add("spo2");
-          } else if (sid === "180d") {
-            row.profiles.add("heart rate");
-          }
-          row.sample = next;
-          if (!row.wearableId) row.wearableId = matchWearableId(row.device.name || "");
-          this.emit();
-          } catch {
-            /* short payload */
-          }
-        };
         const onValue = (ev: Event) => {
           const target = ev.target as unknown as { value?: DataView };
-          if (target.value) apply(target.value);
+          if (target.value) this.ingest(row, sid, cid, target.value);
         };
         try {
           if (ch.properties.notify || ch.properties.indicate) {
             ch.addEventListener("characteristicvaluechanged", onValue);
             await ch.startNotifications();
           } else if (ch.properties.read) {
-            apply(await ch.readValue());
+            this.ingest(row, sid, cid, await ch.readValue());
           }
         } catch {
           /* characteristic rejected */
@@ -367,9 +373,98 @@ class FitnessRadio {
     this.emit();
   }
 
+  private nativeShim(device: BleDevice): BtDevice {
+    const gatt = {
+      connected: true,
+      connect: async () => {
+        throw new Error("native");
+      },
+      disconnect: () => {
+        gatt.connected = false;
+        void BleClient.disconnect(device.deviceId).catch(() => {});
+      },
+    };
+    const listeners = new Set<() => void>();
+    return {
+      id: device.deviceId,
+      name: device.name,
+      gatt,
+      addEventListener: (_type, fn) => {
+        listeners.add(fn);
+      },
+      removeEventListener: (_type, fn) => {
+        listeners.delete(fn);
+      },
+    };
+  }
+
+  private async bindNative(row: Internal, deviceId: string, services: BleService[]) {
+    for (const service of services) {
+      const sid = shortId(service.uuid);
+      for (const ch of service.characteristics) {
+        const cid = shortId(ch.uuid);
+        try {
+          if (ch.properties.notify || ch.properties.indicate) {
+            await BleClient.startNotifications(deviceId, service.uuid, ch.uuid, (value) => {
+              this.ingest(row, sid, cid, value);
+            });
+          } else if (ch.properties.read) {
+            const value = await BleClient.read(deviceId, service.uuid, ch.uuid);
+            this.ingest(row, sid, cid, value);
+          }
+        } catch {
+          /* characteristic rejected */
+        }
+      }
+    }
+    this.emit();
+  }
+
+  private async pairNative(opts?: { wearableId?: string }) {
+    await requestLocationAccess();
+    await BleClient.initialize({ androidNeverForLocation: true });
+    const enabled = await BleClient.isEnabled().catch(() => true);
+    if (!enabled) {
+      try {
+        await BleClient.requestEnable();
+      } catch {
+        throw new Error("Turn Bluetooth on, then tap Connect again.");
+      }
+    }
+    const prefixes = opts?.wearableId ? BRAND_PREFIXES[opts.wearableId] ?? [] : [];
+    const request = (namePrefix?: string) =>
+      BleClient.requestDevice({
+        optionalServices: SERVICE_UUIDS,
+        namePrefix: namePrefix || undefined,
+      });
+    let picked: BleDevice;
+    try {
+      picked = await request(prefixes[0]);
+    } catch (err) {
+      if (isCancel(err)) throw new Error("cancelled");
+      try {
+        picked = await request();
+      } catch (err2) {
+        if (isCancel(err2)) throw new Error("cancelled");
+        throw err2 instanceof Error ? err2 : new Error("Could not open the Bluetooth picker");
+      }
+    }
+    const shim = this.nativeShim(picked);
+    const row = this.attach(shim);
+    if (opts?.wearableId) row.wearableId = opts.wearableId;
+    await BleClient.connect(picked.deviceId, () => row.onDisconnected());
+    if (shim.gatt) shim.gatt.connected = true;
+    const services = await BleClient.getServices(picked.deviceId);
+    await this.bindNative(row, picked.deviceId, services);
+    const link = this.snapshot().find((l) => l.id === picked.deviceId);
+    if (!link) throw new Error("Paired, but the strap sent no GATT services.");
+    return link;
+  }
+
   async pair(opts?: { wearableId?: string }) {
+    if (onNative()) return this.pairNative(opts);
     const api = bt();
-    if (!api) throw new Error("Web Bluetooth isn't in this browser. Use Chrome or Edge on desktop or Android.");
+    if (!api) throw new Error("Web Bluetooth isn't in this browser. Use Chrome or Edge, the Android APK, or GitHub Pages on desktop Chrome.");
     const prefixes = opts?.wearableId ? BRAND_PREFIXES[opts.wearableId] ?? [] : [];
     const optionalServices = [...SERVICES];
     const filters = prefixes.map((namePrefix) => ({ namePrefix }));
@@ -406,6 +501,24 @@ class FitnessRadio {
   }
 
   async restore() {
+    if (onNative()) {
+      try {
+        await BleClient.initialize({ androidNeverForLocation: true });
+        const devices = await BleClient.getConnectedDevices(SERVICE_UUIDS);
+        for (const device of devices) {
+          try {
+            const row = this.attach(this.nativeShim(device));
+            const services = await BleClient.getServices(device.deviceId);
+            await this.bindNative(row, device.deviceId, services);
+          } catch {
+            /* permission still needed */
+          }
+        }
+      } catch {
+        /* bluetooth off */
+      }
+      return;
+    }
     const api = bt();
     if (!api?.getDevices) return;
     const devices = await api.getDevices();

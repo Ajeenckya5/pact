@@ -8,7 +8,7 @@ import type { LiveExercise } from "@/lib/free-apis";
 import { labelsFor, MUSCLE_META, PATTERN_LABEL, targetsOf, workoutKind } from "@/lib/muscles";
 import { usePact } from "@/lib/store";
 import type { Workout } from "@/lib/types";
-import { liveGet } from "@/lib/use-live";
+import { clientExercises } from "@/lib/live-client";
 import { Star } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -21,14 +21,17 @@ export function WorkoutFilm({ id }: { id: string }) {
 
   useEffect(() => {
     if (!id.startsWith("wger-")) return;
-    const ac = new AbortController();
-    liveGet<{ exercises: LiveExercise[] }>(`/api/exercises?id=${encodeURIComponent(id)}`, { signal: ac.signal })
-      .then((d) => setRemote(d.exercises?.[0] ?? null))
-      .catch((err: unknown) => {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setRemote(null);
+    let alive = true;
+    clientExercises(undefined, id)
+      .then((d) => {
+        if (alive) setRemote(d.exercises?.[0] ?? null);
+      })
+      .catch(() => {
+        if (alive) setRemote(null);
       });
-    return () => ac.abort();
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
   if (catalog) return <FilmBody workout={catalog} />;

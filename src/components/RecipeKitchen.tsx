@@ -17,8 +17,8 @@ import {
   swapForLine,
   type SolveMove,
 } from "@/lib/kitchen";
+import { clientRecipeCatalog } from "@/lib/live-client";
 import { useGoal, usePact } from "@/lib/store";
-import { liveGet } from "@/lib/use-live";
 import { Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -84,7 +84,7 @@ export function RecipeKitchen() {
 
   function loadCatalog() {
     setStatus("loading");
-    liveGet<{ recipes: KitchenRecipe[]; live?: number }>(`/api/recipes?catalog=1`)
+    clientRecipeCatalog()
       .then((d) => {
         setCatalog(d.recipes ?? []);
         setLive(d.live ?? 0);
@@ -98,7 +98,7 @@ export function RecipeKitchen() {
 
   useEffect(() => {
     let active = true;
-    liveGet<{ recipes: KitchenRecipe[]; live?: number }>(`/api/recipes?catalog=1`)
+    clientRecipeCatalog()
       .then((d) => {
         if (!active) return;
         setCatalog(d.recipes ?? []);

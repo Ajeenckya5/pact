@@ -1,7 +1,9 @@
 "use client";
 
 import { haversineKm } from "@/lib/data";
-import type { LivePlace, LiveWeather } from "@/lib/free-apis";
+import { readFix } from "@/lib/device-location";
+import type { LiveWeather } from "@/lib/free-apis";
+import { clientPlaces, clientReverse, clientWeather } from "@/lib/live-client";
 import { usePact } from "@/lib/store";
 import type { Place } from "@/lib/types";
 import {
@@ -84,21 +86,20 @@ function useCoordsState(): Coords {
   }
 
   function locate() {
-    if (privacy.location === "off" || typeof navigator === "undefined" || !navigator.geolocation) {
+    if (privacy.location === "off") {
       setDenied(true);
       return;
     }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const approx = privacy.location !== "precise";
-        const { lat, lng } = fuzz(pos.coords.latitude, pos.coords.longitude, approx);
+    const approx = privacy.location !== "precise";
+    void readFix(!approx)
+      .then((fix) => {
+        const { lat, lng } = fuzz(fix.lat, fix.lng, approx);
         apply({ lat, lng, label: "Your area", source: "device" });
         setDenied(false);
         setLocating(false);
-        void fetch(`/api/reverse?lat=${lat}&lng=${lng}`)
-          .then((r) => r.json())
-          .then((d: { label?: string }) => {
+        void clientReverse(lat, lng)
+          .then((d) => {
             if (!d.label) return;
             const label = d.label;
             setHere((current) => {
@@ -110,17 +111,11 @@ function useCoordsState(): Coords {
             });
           })
           .catch(() => {});
-      },
-      () => {
+      })
+      .catch(() => {
         setDenied(true);
         setLocating(false);
-      },
-      {
-        enableHighAccuracy: privacy.location === "precise",
-        maximumAge: privacy.location === "precise" ? 60_000 : 300_000,
-        timeout: 12_000,
-      },
-    );
+      });
   }
 
   function pick(hit: { name: string; lat: number; lng: number }) {
@@ -130,11 +125,12 @@ function useCoordsState(): Coords {
 
   useEffect(() => {
     if (privacy.location === "off") return;
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
     const approx = privacy.location !== "precise";
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { lat, lng } = fuzz(pos.coords.latitude, pos.coords.longitude, approx);
+    let alive = true;
+    void readFix(!approx)
+      .then((fix) => {
+        if (!alive) return;
+        const { lat, lng } = fuzz(fix.lat, fix.lng, approx);
         setHere((current) => {
           if (current) return current;
           const next: Here = { lat, lng, label: "Your area", source: "device" };
@@ -142,10 +138,9 @@ function useCoordsState(): Coords {
           return next;
         });
         setDenied(false);
-        void fetch(`/api/reverse?lat=${lat}&lng=${lng}`)
-          .then((r) => r.json())
-          .then((d: { label?: string }) => {
-            if (!d.label) return;
+        void clientReverse(lat, lng)
+          .then((d) => {
+            if (!d.label || !alive) return;
             const label = d.label;
             setHere((current) => {
               if (!current || current.source === "search") return current;
@@ -156,14 +151,13 @@ function useCoordsState(): Coords {
             });
           })
           .catch(() => {});
-      },
-      () => setDenied(true),
-      {
-        enableHighAccuracy: privacy.location === "precise",
-        maximumAge: privacy.location === "precise" ? 60_000 : 300_000,
-        timeout: 12_000,
-      },
-    );
+      })
+      .catch(() => {
+        if (alive) setDenied(true);
+      });
+    return () => {
+      alive = false;
+    };
   }, [privacy.location]);
 
   return {
@@ -203,12 +197,13 @@ export function useNearbyPlaces(kind: "all" | "gym" | "grocery") {
 
   useEffect(() => {
     if (!here.ready || here.lat == null || here.lng == null) return;
-    const ac = new AbortController();
+    let alive = true;
     const lat = here.lat;
     const lng = here.lng;
     const key = `${lat},${lng},${kind}:${tick}`;
-    liveGet<{ places: LivePlace[] }>(`/api/places?lat=${lat}&lng=${lng}&kind=${kind}`, { signal: ac.signal })
+    clientPlaces(lat, lng, kind)
       .then((d) => {
+        if (!alive) return;
         const origin = { lat, lng };
         setBundle({
           key,
@@ -227,11 +222,12 @@ export function useNearbyPlaces(kind: "all" | "gym" | "grocery") {
           })),
         });
       })
-      .catch((err: unknown) => {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setBundle({ key, places: [], ok: false });
+      .catch(() => {
+        if (alive) setBundle({ key, places: [], ok: false });
       });
-    return () => ac.abort();
+    return () => {
+      alive = false;
+    };
   }, [here.ready, here.lat, here.lng, kind, tick]);
 
   const matched = bundle?.key === locKey ? bundle : null;
@@ -255,7 +251,7 @@ export function fetchLiveWeather(lat: number, lng: number) {
   const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
   let pending = weatherWait.get(key);
   if (!pending) {
-    pending = liveGet<{ weather: LiveWeather }>(`/api/weather?lat=${lat}&lng=${lng}`);
+    pending = clientWeather(lat, lng);
     weatherWait.set(key, pending);
     pending.finally(() => {
       const clear = () => {

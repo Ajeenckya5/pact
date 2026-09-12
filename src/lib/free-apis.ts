@@ -79,12 +79,13 @@ export type GeoHit = {
 };
 
 async function getJson(url: string, init?: RequestInit) {
+  const browser = typeof window !== "undefined";
   const res = await fetch(url, {
     ...init,
     cache: "no-store",
     headers: {
-      "User-Agent": UA,
       Accept: "application/json",
+      ...(browser ? {} : { "User-Agent": UA }),
       ...(init?.headers ?? {}),
     },
     signal: init?.signal ?? AbortSignal.timeout(24_000),

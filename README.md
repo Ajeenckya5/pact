@@ -11,6 +11,29 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## GitHub Pages vs Android APK
+
+They are different builds of the same app.
+
+| | GitHub Pages | Android APK |
+| --- | --- | --- |
+| URL | [ajeenckya5.github.io/pact](https://ajeenckya5.github.io/pact/) | [Releases → Pact-debug.apk](https://github.com/Ajeenckya5/pact/releases/tag/android-debug) |
+| Bluetooth | Web Bluetooth in Chrome or Edge | Native BLE (Nearby devices permission) |
+| Live track | GPS in the browser tab | GPS + BLE while the app is open |
+| Install | Open the site | Sideload the APK (unknown sources) |
+
+Pair a **GATT** strap or trainer (Polar H10, Garmin HRM, Wahoo TICKR, smart bike). Apple Watch, Oura, HealthKit, Health Connect, and many WHOOP units only talk to their own apps — Pact will not invent those numbers.
+
+On the phone: Connect Bluetooth → allow Nearby devices and Location → open **Track** → Start live track. Samples are the real notifications from that one device.
+
+Local APK (needs Android SDK):
+
+```bash
+npm run apk
+```
+
+The debug file lands at `android/app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions builds it on every push to `main`.
+
 State lives in the browser (`localStorage`). HealthKit, Health Connect, Strava OAuth, and grocery checkout still need vendor credentials in production. Everything below is **keyless and free**.
 
 ## Free APIs (wired in)

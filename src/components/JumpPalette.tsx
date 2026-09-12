@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const TARGETS = [
   { href: "/", label: "Overview", hint: "Pact boxes, today's session" },
+  { href: "/live", label: "Track", hint: "GPS + live HR from the paired strap" },
   { href: "/sleep", label: "Sleep", hint: "Night + reading" },
   { href: "/calories", label: "Calories", hint: "Scan, pantry, repeat last" },
   { href: "/water", label: "Water", hint: "Tank + units" },

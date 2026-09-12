@@ -16,7 +16,7 @@ import {
 import { copyText, remainingMacros } from "@/lib/experience";
 import { mealTotals, useGoal, usePact } from "@/lib/store";
 import type { CustomFood, Food } from "@/lib/types";
-import { liveGet } from "@/lib/use-live";
+import { clientFoods } from "@/lib/live-client";
 import { Camera, Copy, Sparkles, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -50,7 +50,7 @@ export default function CaloriesPage() {
       setLiveState("loading");
       setLiveFoods([]);
       setLiveFor(q);
-      liveGet<{ foods: LiveFood[] }>(`/api/foods?q=${encodeURIComponent(q)}`)
+      clientFoods(q)
         .then((d) => {
           setLiveFoods(d.foods ?? []);
           setLiveState("ok");

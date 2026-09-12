@@ -19,7 +19,7 @@ import {
 import type { LiveExercise } from "@/lib/free-apis";
 import { labelsFor, MUSCLE_GROUPS, PATTERN_LABEL, targetsOf, workoutKind, type MuscleGroup } from "@/lib/muscles";
 import type { Workout, WorkoutPattern } from "@/lib/types";
-import { liveGet } from "@/lib/use-live";
+import { clientExercises } from "@/lib/live-client";
 import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -81,22 +81,22 @@ export function WorkoutLibrary() {
 
   useEffect(() => {
     if (kind !== "Directory" && q.trim().length < 2) return;
-    const ac = new AbortController();
-    const path =
-      kind === "Directory"
-        ? `/api/exercises${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ""}`
-        : `/api/exercises?q=${encodeURIComponent(q.trim())}`;
-    liveGet<{ exercises: LiveExercise[] }>(path, { signal: ac.signal })
+    let alive = true;
+    const needle = kind === "Directory" ? q.trim() : q.trim();
+    clientExercises(needle || undefined)
       .then((d) => {
+        if (!alive) return;
         setDirectory(d.exercises ?? []);
         setDirOk(true);
       })
-      .catch((err: unknown) => {
-        if (err instanceof Error && err.name === "AbortError") return;
+      .catch(() => {
+        if (!alive) return;
         setDirectory([]);
         setDirOk(false);
       });
-    return () => ac.abort();
+    return () => {
+      alive = false;
+    };
   }, [kind, q]);
 
   function reset() {
@@ -337,7 +337,7 @@ function ProgramCard({ w }: { w: Workout }) {
 
 function DirectoryCard({ ex }: { ex: LiveExercise }) {
   return (
-    <Link href={`/workouts/${ex.id}`}>
+    <Link href={`/workouts/open?id=${encodeURIComponent(ex.id)}`}>
       <Card className="overflow-hidden transition hover:border-acid/40">
         <div className="relative aspect-video bg-[#efe8d6]">
           {ex.image ? (

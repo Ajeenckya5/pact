@@ -2,7 +2,8 @@
 
 import { Button, Card, Chip, Field } from "@/components/ui";
 import type { GeoHit } from "@/lib/free-apis";
-import { liveGet, useCoords } from "@/lib/use-live";
+import { clientGeocode } from "@/lib/live-client";
+import { useCoords } from "@/lib/use-live";
 import { LocateFixed } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -17,7 +18,7 @@ export function LocationBar({ hint }: { hint?: string }) {
     const needle = q.trim();
     if (needle.length < 2) return;
     setSearching(true);
-    void liveGet<{ hits: GeoHit[] }>(`/api/geocode?q=${encodeURIComponent(needle)}`)
+    void clientGeocode(needle)
       .then((d) => setHits(d.hits ?? []))
       .catch(() => setHits([]))
       .then(() => setSearching(false));

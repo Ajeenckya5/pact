@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pact-free-apis": {
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp/server.mjs"]
+    }
+  }
+}

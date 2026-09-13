@@ -14,6 +14,11 @@ import {
   type PantryItem,
 } from "@/lib/pantry";
 import { copyText, remainingMacros } from "@/lib/experience";
+import {
+  analyzePlateImage,
+  rescaleCandidate,
+  type PlateScan,
+} from "@/lib/plate-vision";
 import { mealTotals, useGoal, usePact } from "@/lib/store";
 import type { CustomFood, Food } from "@/lib/types";
 import { clientFoods } from "@/lib/live-client";
@@ -29,7 +34,13 @@ export default function CaloriesPage() {
   const totals = mealTotals(store.meals);
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
+  const [scanPhase, setScanPhase] = useState<string | null>(null);
+  const [netReady, setNetReady] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [scan, setScan] = useState<PlateScan | null>(null);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const [scanGrams, setScanGrams] = useState("180");
+  const [scanError, setScanError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<PantryGroup | "All">("All");
   const [portion, setPortion] = useState("");
@@ -42,6 +53,21 @@ export default function CaloriesPage() {
   const [customCarbs, setCustomCarbs] = useState("");
   const [customFat, setCustomFat] = useState("");
   const [saveCustom, setSaveCustom] = useState(true);
+
+  useEffect(() => {
+    let live = true;
+    void import("@/lib/plate-net")
+      .then((m) => m.preloadFoodNet())
+      .then(() => {
+        if (live) setNetReady(true);
+      })
+      .catch(() => {
+        if (live) setNetReady(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     const q = query.trim();
@@ -101,9 +127,41 @@ export default function CaloriesPage() {
     const url = URL.createObjectURL(file);
     setPreview(url);
     setScanning(true);
-    await wait(1400);
-    store.scanMeal(file.name, url);
-    setScanning(false);
+    setScanPhase("Starting CLIP…");
+    setScan(null);
+    setScanError(null);
+    try {
+      const next = await analyzePlateImage(file, new Date().getHours(), setScanPhase);
+      setScan(next);
+      const first = next.top ?? next.ranked[0];
+      setPickedId(first?.id ?? null);
+      setScanGrams(String(first?.grams ?? 180));
+    } catch {
+      setScanError("Could not read that photo. Log from the pantry instead.");
+    } finally {
+      setScanning(false);
+      setScanPhase(null);
+    }
+  }
+
+  const picked = scan?.ranked.find((r) => r.id === pickedId) ?? scan?.ranked[0] ?? null;
+  const gramN = Number(scanGrams);
+  const drafted = picked ? rescaleCandidate(picked, Number.isFinite(gramN) && gramN > 0 ? gramN : picked.grams) : null;
+
+  function confirmScan() {
+    if (!drafted) return;
+    store.addMeal({
+      foodId: drafted.foodId ?? drafted.pantryId ?? drafted.id,
+      name: `${drafted.name} (${drafted.grams}g)`,
+      kcal: drafted.kcal,
+      protein: drafted.protein,
+      carbs: drafted.carbs,
+      fat: drafted.fat,
+      source: "ai",
+      photo: preview ?? undefined,
+    });
+    setScan(null);
+    setPickedId(null);
   }
 
   function gramsFor(item: PantryItem) {
@@ -212,8 +270,9 @@ export default function CaloriesPage() {
           <Eyebrow>AI calorie tracking</Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight">Photograph the plate. Argue the macros later.</h1>
           <p className="mt-3 max-w-2xl text-mute">
-            {PANTRY.length} pantry ingredients with per-gram macros, Open Food Facts for packaged food, and a manual
-            entry when nothing matches.
+            {PANTRY.length} pantry ingredients, Open Food Facts for packaged food, and CLIP ViT-B/32 on this device —
+            trained on LAION-2B (2 billion image–text pairs), then matched against the pantry. You confirm before
+            anything is logged.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -276,10 +335,82 @@ export default function CaloriesPage() {
               </button>
             )}
           </div>
-          {scanning ? <p className="mt-3 text-sm text-acid">Reading plate geometry, portions, sauces…</p> : null}
-          <p className="mt-4 text-xs text-mute">
-            Demo scan maps the filename and time of day onto a food model. Confirming writes the meal into today&apos;s log.
-          </p>
+          {scanning ? <p className="mt-3 text-sm text-acid">{scanPhase ?? "Classifying plate…"}</p> : null}
+          {scanError ? <p className="mt-3 text-sm text-heat">{scanError}</p> : null}
+          {scan && drafted ? (
+            <div className="mt-4 space-y-3">
+              {scan.unsure ? (
+                <p className="text-sm text-gold">
+                  {scan.engine === "clip"
+                    ? "CLIP is not sure enough to auto-pick. Choose a dish below or search the pantry."
+                    : "Vision model did not load. Color fallback is weak — pick from the pantry."}
+                </p>
+              ) : (
+                <p className="text-sm text-cream">
+                  {drafted.name} · {Math.round(drafted.softmax * 100)}% · {drafted.kcal} kcal for {drafted.grams}g
+                  <span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-mute">
+                    {scan.engine === "clip"
+                      ? scan.netModel?.dataset
+                        ? `CLIP · ${scan.netModel.dataset.split(" (")[0]}`
+                        : "CLIP LAION-2B"
+                      : "HSV fallback"}
+                  </span>
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {scan.ranked.map((c) => (
+                  <Chip key={c.id} active={c.id === drafted.id} onClick={() => setPickedId(c.id)}>
+                    {c.name} · {Math.round(c.softmax * 100)}%
+                  </Chip>
+                ))}
+              </div>
+              <Field
+                type="number"
+                min={20}
+                max={800}
+                inputMode="decimal"
+                placeholder="Portion grams"
+                value={scanGrams}
+                onChange={(e) => setScanGrams(e.target.value)}
+              />
+              <p className="font-mono text-xs text-mute">
+                P{drafted.protein} C{drafted.carbs} F{drafted.fat} · Atwater {drafted.atwaterKcal} kcal (4P+4C+9F)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={confirmScan}>
+                  Log this plate
+                </Button>
+                <Button
+                  type="button"
+                  tone="ghost"
+                  onClick={() => {
+                    setScan(null);
+                    setPickedId(null);
+                  }}
+                >
+                  Discard
+                </Button>
+              </div>
+              <details className="rounded-2xl border border-line bg-ink/60 p-3">
+                <summary className="cursor-pointer text-xs uppercase tracking-[0.16em] text-mute">Proof</summary>
+                <ul className="mt-2 space-y-1 text-xs text-mute">
+                  {scan.proof.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                  {drafted.why.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+          ) : (
+            <p className="mt-4 text-xs text-mute">
+              {netReady
+                ? "CLIP (LAION-2B) is cached on this device. The photo is classified here — it is not uploaded."
+                : "First scan downloads CLIP trained on LAION-2B (~150MB, free, no API key) and caches it. After that, scans run on-device."}{" "}
+              Nothing is logged until you confirm.
+            </p>
+          )}
           <div className="mt-5">
             <p className="mb-2 text-xs uppercase tracking-[0.16em] text-mute">Common plates</p>
             <div className="flex flex-wrap gap-2">
@@ -630,8 +761,4 @@ function Macro({
       </div>
     </Card>
   );
-}
-
-function wait(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
 }

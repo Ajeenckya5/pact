@@ -1,3 +1,5 @@
+import { atwaterKcal, scalePer100 } from "./algos";
+
 export const PANTRY_GROUPS = [
   "Meat",
   "Seafood",
@@ -576,15 +578,14 @@ export function findPantry(name: string): PantryItem | undefined {
 }
 
 export function scalePantry(item: PantryItem, grams: number): ScaledMacros {
-  const k = grams / 100;
   return {
-    kcal: Math.round(item.kcal100 * k),
-    protein: Math.round(item.protein100 * k),
-    carbs: Math.round(item.carbs100 * k),
-    fat: Math.round(item.fat100 * k),
+    kcal: scalePer100(item.kcal100, grams),
+    protein: scalePer100(item.protein100, grams),
+    carbs: scalePer100(item.carbs100, grams),
+    fat: scalePer100(item.fat100, grams),
   };
 }
 
 export function derivedKcal(protein: number, carbs: number, fat: number) {
-  return Math.round(4 * protein + 4 * carbs + 9 * fat);
+  return atwaterKcal(protein, carbs, fat);
 }

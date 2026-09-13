@@ -46,7 +46,7 @@ State lives in the browser (`localStorage`). HealthKit, Health Connect, Strava O
 | [Open Food Facts](https://world.openfoodfacts.org) | Calorie / macro search | `/api/foods` |
 | [TheMealDB](https://www.themealdb.com) | Recipes from ingredients | `/api/recipes` |
 | [wger](https://wger.de/en/software/api) | Exercise directory | `/api/exercises` |
-| CARTO / OSM tiles | Map rendering | Places page |
+| [OpenStreetMap tiles](https://www.openstreetmap.org/copyright) | Map rendering (no key; OSM.de / Esri dark fallback) | Places page |
 
 Status of those feeds is on **Wearables**.
 
@@ -67,7 +67,7 @@ Enable **pact-free-apis** in Cursor Settings → MCP if it does not connect auto
 
 - **Overview** — Pact score plus live Open-Meteo training weather
 - **Sleep** — stages, overnight vitals, wind-down reading, sun clock
-- **Calories** — camera scan + Open Food Facts search
+- **Calories** — CLIP ViT-B/32 (LAION-2B) on-device scan + Open Food Facts search
 - **Water** — goal-scaled hydration
 - **Workouts** — YouTube library + wger directory
 - **Market** — goal cart + TheMealDB recipes + order

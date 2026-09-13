@@ -776,15 +776,6 @@ export function goalById(id: Goal["id"]) {
   return GOALS.find((g) => g.id === id) ?? GOALS[0];
 }
 
-export function analyzePhoto(fileName: string, hour: number): Food {
-  const lower = fileName.toLowerCase();
-  const hit = FOODS.find((f) => f.keywords.some((k) => lower.includes(k)));
-  if (hit) return hit;
-  if (hour < 11) return FOODS.find((f) => f.id === "yogurt") ?? FOODS[0];
-  if (hour < 16) return FOODS.find((f) => f.id === "salad") ?? FOODS[0];
-  if (hour < 21) return FOODS.find((f) => f.id === "salmon-bowl") ?? FOODS[0];
-  return FOODS.find((f) => f.id === "espresso-bar") ?? FOODS[0];
-}
 
 export function recipesFor(goal: Goal["id"], selected: string[]) {
   const scored = RECIPES.filter((r) => r.goals.includes(goal)).map((r) => {
@@ -795,17 +786,4 @@ export function recipesFor(goal: Goal["id"], selected: string[]) {
   return scored;
 }
 
-export function haversineKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-) {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) *
-      Math.cos((b.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
+export { haversineKm } from "./algos";

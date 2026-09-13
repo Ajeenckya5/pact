@@ -34,7 +34,7 @@ export const FAQS: FaqItem[] = [
     id: "pact-score",
     category: "Pact",
     q: "What is Pact score?",
-    a: "A weighted 0–100 from recovery, sleep, fuel, water, training, and whether you actually ticked today's pact. It lives on Overview. It is not VO2 or a medical score.",
+    a: "A weighted 0–100: recovery 24%, sleep 20%, fuel+protein 20%, water 12%, training 14%, today's pact boxes 10%. Fuel is closeness to the calorie target. It lives on Overview. It is not VO2 or a medical score.",
   },
   {
     id: "pact-goal",
@@ -94,7 +94,13 @@ export const FAQS: FaqItem[] = [
     id: "cal-scan",
     category: "Calories",
     q: "How do I scan a meal?",
-    a: "Calories → Scan a meal or drop a photo. The demo maps filename and time of day onto a plated model, then writes the log. It is on-device style, not a lab-grade vision API.",
+    a: "Calories → Scan a meal. Pact runs CLIP ViT-B/32 trained on LAION-2B (2 billion image–text pairs) on the device and matches the photo against the pantry — not a 101-dish ceiling. The largest food-only set, Food2K, is not published as a browser model. The first scan downloads a quantized ONNX graph and caches it. You confirm the top dishes before anything hits the log. Open Proof for class probabilities and Atwater macros.",
+  },
+  {
+    id: "cal-atwater",
+    category: "Calories",
+    q: "How are calories calculated?",
+    a: "Pantry rows store USDA-style kcal per 100g, scaled as grams/100. The Proof line also shows Atwater 4×protein + 4×carbs + 9×fat from those macros. Typed custom food with a blank kcal box uses Atwater.",
   },
   {
     id: "cal-pantry",
@@ -364,7 +370,7 @@ export const FAQS: FaqItem[] = [
     id: "map-osm",
     category: "Market",
     q: "Where do gyms and grocers come from?",
-    a: "OpenStreetMap Overpass around your coordinates. No Google Places key. If Overpass is slow, retry from the location bar.",
+    a: "OpenStreetMap Overpass around your coordinates. No Google Places key. The map itself is OSM raster (dark-inverted) with OSM.de then Esri Canvas Dark Gray as fallbacks — no CARTO key.",
   },
   {
     id: "coach-what",
@@ -412,7 +418,7 @@ export const FAQS: FaqItem[] = [
     id: "pact-strain",
     category: "Pact",
     q: "What is strain?",
-    a: "A 0–21 training-load style number on Overview, in the Whoop vocabulary. Pact does not claim it is a lab TRIMP. Pair it with recovery before you add a fourth session.",
+    a: "A 0–21 training-load style number. Pairing a BLE strap can raise it: min(21, max(baseline, baseline + max(0, HR − RHR − 28) / 10, baseline + watts / 45)). Unpaired, it stays on the Pact log. It is not a lab TRIMP.",
   },
   {
     id: "pact-recovery",

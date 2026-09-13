@@ -16,9 +16,10 @@ import {
   RECIPES,
   SEED_POSTS,
   USER,
-  analyzePhoto,
   goalById,
 } from "./data";
+import { combinePactScore } from "./algos";
+import { rankPlate } from "./plate-vision";
 import { mealSlice, matchIngredient, type DietId, type MealTargets } from "./kitchen";
 import { tap } from "./experience";
 import { emptyScore, friendFromContact, mergeContacts, seedScore } from "./training";
@@ -263,7 +264,7 @@ type Store = PactState & {
   setStrava: (v: boolean) => void;
   addWater: (ml: number) => void;
   addMeal: (meal: Omit<MealLog, "id" | "at">) => void;
-  scanMeal: (fileName: string, photo?: string) => MealLog;
+  scanMeal: (fileName: string, photo?: string) => MealLog | null;
   removeMeal: (id: string) => void;
   saveCustomFood: (food: Omit<CustomFood, "id" | "createdAt">) => void;
   removeCustomFood: (id: string) => void;
@@ -441,18 +442,23 @@ export function PactProvider({ children }: { children: ReactNode }) {
         }),
       removeCustomFood: (id) => update((s) => ({ ...s, customFoods: s.customFoods.filter((f) => f.id !== id) })),
       scanMeal: (fileName, photo) => {
-        const food = analyzePhoto(fileName, new Date().getHours());
+        const scan = rankPlate({ filename: fileName, hour: new Date().getHours() });
+        if (scan.unsure || !scan.top) {
+          flash("Scan was unsure — pick the food on Calories");
+          return null;
+        }
+        const food = scan.top;
         const meal: MealLog = {
           id: uid(),
-          foodId: food.id,
-          name: food.name,
+          foodId: food.foodId ?? food.pantryId ?? food.id,
+          name: `${food.name} (${food.grams}g)`,
           kcal: food.kcal,
           protein: food.protein,
           carbs: food.carbs,
           fat: food.fat,
           at: new Date().toISOString(),
           source: "ai",
-          photo: photo ?? food.photo,
+          photo,
         };
         update((s) => {
           const meals = [meal, ...s.meals];
@@ -910,14 +916,15 @@ export function pactScore(s: {
   const hydro = Math.min(100, (s.waterMl / g.waterMl) * 100);
   const move = s.checkins.move ? 100 : 35;
   const pactDone = Object.values(s.checkins).filter(Boolean).length * 25;
-  return Math.round(
-    s.recovery * 0.24 +
-      s.sleepScore * 0.2 +
-      ((fuel + protein) / 2) * 0.2 +
-      hydro * 0.12 +
-      move * 0.14 +
-      pactDone * 0.1,
-  );
+  return combinePactScore({
+    recovery: s.recovery,
+    sleepScore: s.sleepScore,
+    fuel,
+    protein,
+    hydro,
+    move,
+    pactDone,
+  });
 }
 
 export function canSee(level: PrivacyLevel, relation: "self" | "friend" | "circle" | "public") {

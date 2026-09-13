@@ -45,6 +45,11 @@ body {
   font-family: inherit;
 }
 
+/* OSM raster inverted to match Pact — no tile API key. */
+.pact-osm-dark .leaflet-tile {
+  filter: invert(1) hue-rotate(180deg) saturate(0.55) brightness(0.9);
+}
+
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
   background: #141821;

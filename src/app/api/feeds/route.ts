@@ -7,7 +7,7 @@ const FEEDS = [
   { id: "mealdb", name: "TheMealDB", use: "Recipes from ingredients", url: "https://www.themealdb.com", key: false },
   { id: "wger", name: "wger", use: "Exercise directory", url: "https://wger.de/api/v2", key: false },
   { id: "geocode", name: "Open-Meteo Geocoding", use: "Place search", url: "https://geocoding-api.open-meteo.com", key: false },
-  { id: "carto", name: "CARTO / OSM tiles", use: "Map rendering", url: "https://basemaps.cartocdn.com", key: false },
+  { id: "osm", name: "OpenStreetMap tiles", use: "Map rendering · no API key", url: "https://tile.openstreetmap.org", key: false },
 ];
 
 export async function GET() {
@@ -26,9 +26,9 @@ export async function GET() {
                   ? "https://wger.de/api/v2/exerciseinfo/?limit=1"
                   : feed.id === "geocode"
                     ? "https://geocoding-api.open-meteo.com/v1/search?name=San%20Francisco&count=1"
-                    : feed.id === "carto"
-                      ? "https://basemaps.cartocdn.com/dark_all/0/0/0.png"
-                      : "https://overpass-api.de/api/status";
+                  : feed.id === "osm"
+                    ? "https://tile.openstreetmap.org/0/0/0.png"
+                    : "https://overpass-api.de/api/status";
         const res = await fetch(probe, {
           headers: { "User-Agent": "PactAccountability/1.0" },
           signal: AbortSignal.timeout(8000),

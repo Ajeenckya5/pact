@@ -1,9 +1,10 @@
 "use client";
 
 import { haversineKm } from "@/lib/data";
+import { ESRI_DARK, OSM_DE_RASTER, OSM_RASTER } from "@/lib/map-tiles";
 import { usePact } from "@/lib/store";
 import type { Place, PlaceKind } from "@/lib/types";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -13,6 +14,30 @@ function FlyTo({ lat, lng }: { lat: number; lng: number }) {
     map.flyTo([lat, lng], 14, { duration: 0.6 });
   }, [lat, lng, map]);
   return null;
+}
+
+function Basemap() {
+  const [src, setSrc] = useState<"osm" | "osmde" | "esri">("osm");
+  const misses = useRef(0);
+  if (src === "esri") {
+    return <TileLayer attribution={ESRI_DARK.attribution} url={ESRI_DARK.url} />;
+  }
+  const pack = src === "osmde" ? OSM_DE_RASTER : OSM_RASTER;
+  return (
+    <TileLayer
+      className="pact-osm-dark"
+      attribution={pack.attribution}
+      url={pack.url}
+      eventHandlers={{
+        tileerror: () => {
+          misses.current += 1;
+          if (misses.current < 4) return;
+          misses.current = 0;
+          setSrc((cur) => (cur === "osm" ? "osmde" : "esri"));
+        },
+      }}
+    />
+  );
 }
 
 export default function MapCanvas({
@@ -48,10 +73,7 @@ export default function MapCanvas({
       style={{ height: "100%", minHeight: 420 }}
       scrollWheelZoom
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CARTO'
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      />
+      <Basemap />
       <FlyTo lat={target.lat} lng={target.lng} />
       {line.length > 1 ? <Polyline positions={line} pathOptions={{ color: "#d6ff3f", weight: 4, opacity: 0.9 }} /> : null}
       <CircleMarker

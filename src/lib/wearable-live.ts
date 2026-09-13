@@ -1,4 +1,5 @@
 import type { BleLink } from "./bluetooth-fitness";
+import { strainFromBle } from "./algos";
 import { WEARABLES } from "./data";
 import type { Wearable } from "./types";
 
@@ -108,10 +109,7 @@ export function fuseLive(input: { baseline: LiveBaseline; now: number; bleLinks?
   const blePower = primary?.sample.power ?? null;
   const liveName = primary?.name ?? null;
 
-  let strain = input.baseline.strain;
-  if (bleHr != null) strain = Math.max(strain, input.baseline.strain + Math.max(0, bleHr - input.baseline.rhr - 28) / 10);
-  if (blePower != null) strain = Math.max(strain, input.baseline.strain + blePower / 45);
-  strain = round(Math.min(21, strain), 1);
+  const strain = strainFromBle(input.baseline.strain, input.baseline.rhr, bleHr, blePower);
 
   return {
     recovery: input.baseline.recovery,

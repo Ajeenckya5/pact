@@ -101,12 +101,12 @@ const FEED_PROBES = [
     probe: "https://geocoding-api.open-meteo.com/v1/search?name=San%20Francisco&count=1",
   },
   {
-    id: "carto",
-    name: "CARTO / OSM tiles",
-    use: "Map rendering",
-    url: "https://basemaps.cartocdn.com",
+    id: "osm",
+    name: "OpenStreetMap tiles",
+    use: "Map rendering · no API key",
+    url: "https://tile.openstreetmap.org",
     key: false,
-    probe: "https://basemaps.cartocdn.com/dark_all/0/0/0.png",
+    probe: "https://tile.openstreetmap.org/0/0/0.png",
   },
 ] as const;
 

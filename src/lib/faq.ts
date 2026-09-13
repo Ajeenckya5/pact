@@ -93,8 +93,8 @@ export const FAQS: FaqItem[] = [
   {
     id: "cal-scan",
     category: "Calories",
-    q: "How do I scan a meal?",
-    a: "Calories → Scan a meal. Pact runs CLIP ViT-B/32 trained on LAION-2B (2 billion image–text pairs) on the device and matches the photo against the pantry — not a 101-dish ceiling. The largest food-only set, Food2K, is not published as a browser model. The first scan downloads a quantized ONNX graph and caches it. You confirm the top dishes before anything hits the log. Open Proof for class probabilities and Atwater macros.",
+    q: "Where can I scan a photo?",
+    a: "Calories, Overview, Community, Chat, Workouts, Recipes, Market, and Places all share one on-device CLIP ViT-B/32 trained on LAION-2B (2 billion image–text pairs). A plate maps to the pantry, a rack maps to the lift library, a storefront sets Gyms or Grocery. The first photo in the app downloads a quantized ONNX graph and caches it. Nothing is uploaded. On Calories you still confirm before a meal is logged.",
   },
   {
     id: "cal-atwater",
@@ -286,7 +286,7 @@ export const FAQS: FaqItem[] = [
     id: "cir-community",
     category: "Circle",
     q: "What can I post in Community?",
-    a: "Text and an optional photo, with optional recovery/strain/workout stats. Likes and comments stay local. Photo default follows Privacy.",
+    a: "Text and an optional photo, with optional recovery/strain/workout stats. Attaching a photo runs CLIP on-device and can prefill the caption. Likes and comments stay local. Photo default follows Privacy.",
   },
   {
     id: "cir-contacts",

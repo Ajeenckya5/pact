@@ -1,8 +1,10 @@
 "use client";
 
+import { ClipResult, ClipScanButton } from "@/components/ClipScan";
 import { TodaySession } from "@/components/TodaySession";
 import { WorkoutLibrary } from "@/components/WorkoutLibrary";
 import { Button, Card, Chip, Eyebrow, Field, Stat } from "@/components/ui";
+import type { AppPhotoScan } from "@/lib/app-vision";
 import { timeAgo } from "@/lib/format";
 import { usePact } from "@/lib/store";
 import {
@@ -40,6 +42,7 @@ export function WorkoutDesk() {
   const raw = params.get("tab");
   const fromUrl: Tab = (TABS as readonly string[]).includes(raw ?? "") ? (raw as Tab) : "Track";
   const [tab, setTabState] = useState<Tab>(fromUrl);
+  const [clip, setClip] = useState<{ scan: AppPhotoScan; preview: string } | null>(null);
   const [groupSeed, setGroupSeed] = useState<{ title: string; templateId: string } | null>(null);
   const circle = peopleInCircle(store.friends, store.extraFriends);
   const week = weekStats(store.workoutLogs);
@@ -61,9 +64,30 @@ export function WorkoutDesk() {
         <h1 className="mt-2 font-display text-4xl tracking-tight">Log it. Repeat it. Race your circle.</h1>
         <p className="mt-3 max-w-2xl text-mute">
           The library is the desk: programs, split days, single-lift form, and follow-alongs — each with a muscle map
-          and a log button. Track what you did, one-tap the common sessions, write your own, then race the circle.
+          and a log button. Scan a rack or a machine with CLIP and it opens the matching film.
         </p>
       </div>
+      <div className="flex flex-wrap gap-2">
+        <ClipScanButton
+          label="Scan a lift"
+          onScan={(scan, _file, preview) => {
+            setClip({ scan, preview });
+          }}
+        />
+      </div>
+      {clip ? (
+        <Card className="p-5">
+          <ClipResult
+            scan={clip.scan}
+            preview={clip.preview}
+            extra={
+              <Button type="button" tone="ghost" onClick={() => setClip(null)}>
+                Dismiss
+              </Button>
+            }
+          />
+        </Card>
+      ) : null}
 
       {pending.length ? (
         <Card className="border-acid/40 p-5">

@@ -10,7 +10,7 @@ const TARGETS = [
   { href: "/", label: "Overview", hint: "Pact boxes, today's session" },
   { href: "/live", label: "Track", hint: "GPS + live HR from the paired strap" },
   { href: "/sleep", label: "Sleep", hint: "Night + reading" },
-  { href: "/calories", label: "Calories", hint: "Scan, pantry, repeat last" },
+  { href: "/calories", label: "Calories", hint: "CLIP plate scan, pantry, repeat last" },
   { href: "/water", label: "Water", hint: "Tank + units" },
   { href: "/workouts", label: "Workouts", hint: "Track / race" },
   { href: "/workouts?tab=Library", label: "Library", hint: "Films and lifts" },

@@ -1,7 +1,9 @@
 "use client";
 
+import { ClipResult, ClipScanButton } from "@/components/ClipScan";
 import { LocationBar } from "@/components/LocationBar";
 import { Button, Card, Chip, Eyebrow, Field } from "@/components/ui";
+import type { AppPhotoScan } from "@/lib/app-vision";
 import { GOALS, INGREDIENTS, recipesFor } from "@/lib/data";
 import { fmt } from "@/lib/format";
 import { cartTotal, useGoal, usePact } from "@/lib/store";
@@ -19,6 +21,7 @@ function FuelInner() {
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [address, setAddress] = useState("");
   const [placed, setPlaced] = useState<string | null>(null);
+  const [clip, setClip] = useState<{ scan: AppPhotoScan; preview: string } | null>(null);
 
   const paramId = params.get("store");
   const wantId = pickedId ?? paramId ?? store.storeId;
@@ -48,8 +51,26 @@ function FuelInner() {
             Open recipe kitchen
           </Link>
           <Button onClick={() => store.stockGoalList()}>Build {goal.name} cart</Button>
+          <ClipScanButton
+            label="Scan groceries"
+            onScan={(scan, _file, preview) => setClip({ scan, preview })}
+          />
         </div>
       </div>
+
+      {clip ? (
+        <Card className="p-5">
+          <ClipResult
+            scan={clip.scan}
+            preview={clip.preview}
+            extra={
+              <Button type="button" tone="ghost" onClick={() => setClip(null)}>
+                Dismiss
+              </Button>
+            }
+          />
+        </Card>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {GOALS.map((g) => (

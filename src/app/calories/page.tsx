@@ -270,9 +270,9 @@ export default function CaloriesPage() {
           <Eyebrow>AI calorie tracking</Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight">Photograph the plate. Argue the macros later.</h1>
           <p className="mt-3 max-w-2xl text-mute">
-            {PANTRY.length} pantry ingredients, Open Food Facts for packaged food, and CLIP ViT-B/32 on this device —
-            trained on LAION-2B (2 billion image–text pairs), then matched against the pantry. You confirm before
-            anything is logged.
+            {PANTRY.length} pantry ingredients, Open Food Facts for packaged food, and CLIP ViT-B/32 (LAION-2B) on this
+            device — the same model runs on Overview, Community, Chat, Workouts, Recipes, Market, and Places. You confirm
+            before anything is logged.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

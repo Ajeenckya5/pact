@@ -65,13 +65,13 @@ Enable **pact-free-apis** in Cursor Settings → MCP if it does not connect auto
 
 ## What’s inside
 
-- **Overview** — Pact score plus live Open-Meteo training weather
+- **Overview** — Pact score, live weather, and CLIP photo scan
 - **Sleep** — stages, overnight vitals, wind-down reading, sun clock
 - **Calories** — CLIP ViT-B/32 (LAION-2B) on-device scan + Open Food Facts search
 - **Water** — goal-scaled hydration
-- **Workouts** — YouTube library + wger directory
-- **Market** — goal cart + TheMealDB recipes + order
-- **Places** — OSM Overpass + curated pins
+- **Workouts** — YouTube library + wger directory + CLIP lift scan
+- **Market** — goal cart + TheMealDB recipes + grocery photo scan
+- **Places** — OSM Overpass + CLIP gym/grocery scan
 - **Strava / Wearables** — iOS + Android sources + feed health
-- **Friends, Chat, Community** — nudges, photos, comments
+- **Friends, Chat, Community** — CLIP-captioned photos, nudges, comments
 - **Privacy** — private / friends / circle / public per metric

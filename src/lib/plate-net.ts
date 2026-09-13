@@ -102,8 +102,17 @@ function asHits(raw: unknown): FoodNetHit[] {
 }
 
 export async function classifyPlate(file: File, topk = 8): Promise<FoodNetHit[]> {
+  return classifyZeroShot(file, labels ?? foodCandidateLabels(), topk);
+}
+
+export async function classifyZeroShot(
+  file: File,
+  candidates: string[],
+  topk = 8,
+  hypothesis = HYPOTHESIS,
+): Promise<FoodNetHit[]> {
+  if (!candidates.length) return [];
   const net = await getClassifier();
-  const candidates = labels ?? foodCandidateLabels();
-  const raw = await net(file, candidates, { hypothesis_template: HYPOTHESIS });
+  const raw = await net(file, candidates, { hypothesis_template: hypothesis });
   return asHits(raw).slice(0, topk);
 }

@@ -1,10 +1,12 @@
 "use client";
 
+import { ClipResult, ClipScanButton } from "@/components/ClipScan";
 import { ScoreRing, Sparkline } from "@/components/charts";
 import { TodaySession } from "@/components/TodaySession";
 import { WearableLiveStrip } from "@/components/WearableLive";
 import { WeatherStrip } from "@/components/WeatherStrip";
 import { Button, Card, Chip, Eyebrow, Progress, Stat } from "@/components/ui";
+import type { AppPhotoScan } from "@/lib/app-vision";
 import { GOALS, USER } from "@/lib/data";
 import { fmt } from "@/lib/format";
 import { copyText, formatWater, pactShareText, remainingMacros, waterAdds, weekRecap } from "@/lib/experience";
@@ -15,6 +17,7 @@ import { useLiveBody } from "@/lib/wearable-live-context";
 import { peopleInCircle, todayLogs, weekStats } from "@/lib/training";
 import { Check, Droplets, Moon, PersonStanding, Utensils } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function OverviewPage() {
   const store = usePact();
@@ -34,6 +37,7 @@ export default function OverviewPage() {
     week,
     Object.values(store.checkins).filter(Boolean).length,
   );
+  const [clip, setClip] = useState<{ scan: AppPhotoScan; preview: string } | null>(null);
   const pactBits = [
     { key: "sleep" as const, label: "Sleep 7h+", icon: Moon, done: store.checkins.sleep },
     { key: "fuel" as const, label: "Hit protein", icon: Utensils, done: totals.protein >= goal.protein || store.checkins.fuel },
@@ -55,6 +59,10 @@ export default function OverviewPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ClipScanButton
+            label="Scan a photo"
+            onScan={(scan, _file, preview) => setClip({ scan, preview })}
+          />
           {GOALS.map((g) => (
             <Chip key={g.id} active={store.goal === g.id} onClick={() => store.setGoal(g.id)}>
               {g.name}
@@ -62,6 +70,23 @@ export default function OverviewPage() {
           ))}
         </div>
       </div>
+
+      {clip ? (
+        <Card className="p-5">
+          <Eyebrow>CLIP · LAION-2B</Eyebrow>
+          <div className="mt-4">
+            <ClipResult
+              scan={clip.scan}
+              preview={clip.preview}
+              extra={
+                <Button type="button" tone="ghost" onClick={() => setClip(null)}>
+                  Dismiss
+                </Button>
+              }
+            />
+          </div>
+        </Card>
+      ) : null}
 
       <WeatherStrip />
 

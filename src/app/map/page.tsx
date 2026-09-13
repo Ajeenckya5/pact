@@ -1,19 +1,27 @@
 "use client";
 
+import { ClipResult, ClipScanButton } from "@/components/ClipScan";
 import { LocationBar } from "@/components/LocationBar";
 import { PlaceMap } from "@/components/PlaceMap";
-import { Card, Chip, Eyebrow } from "@/components/ui";
+import { Button, Card, Chip, Eyebrow } from "@/components/ui";
+import type { AppPhotoScan } from "@/lib/app-vision";
 import { usePact } from "@/lib/store";
 import type { PlaceKind } from "@/lib/types";
 import { useNearbyPlaces } from "@/lib/use-live";
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
-export default function MapPage() {
+function MapInner() {
   const store = usePact();
-  const [filter, setFilter] = useState<"all" | PlaceKind>("all");
+  const params = useSearchParams();
+  const fromUrl = params.get("kind");
+  const [filter, setFilter] = useState<"all" | PlaceKind>(
+    fromUrl === "gym" || fromUrl === "grocery" ? fromUrl : "all",
+  );
   const { here, places, liveOk, retry } = useNearbyPlaces(filter);
   const [picked, setPicked] = useState<{ loc: string; id: string } | null>(null);
+  const [clip, setClip] = useState<{ scan: AppPhotoScan; preview: string } | null>(null);
   const locKey = here.ready && here.lat != null && here.lng != null ? `${here.lat},${here.lng}` : "";
   const selected =
     picked?.loc === locKey ? (places.find((p) => p.id === picked.id) ?? places[0]) : places[0];
@@ -42,6 +50,7 @@ export default function MapPage() {
         <h1 className="mt-2 font-display text-4xl tracking-tight">Gyms and grocers, on the same map.</h1>
         <p className="mt-3 max-w-2xl text-mute">
           Pins load from OpenStreetMap around your GPS or a city you search — nothing is pre-pinned to San Francisco.
+          Scan a storefront and CLIP sets Gyms or Grocery.{" "}
           {liveOk === true ? " OSM feed is up." : liveOk === false ? " OSM timed out. Retry or pick another area." : ""}
         </p>
       </div>
@@ -55,13 +64,34 @@ export default function MapPage() {
           .
         </Card>
       ) : null}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {(["all", "gym", "grocery"] as const).map((f) => (
           <Chip key={f} active={filter === f} onClick={() => setFilter(f)}>
             {f === "all" ? "All" : f === "gym" ? "Gyms" : "Grocery"}
           </Chip>
         ))}
+        <ClipScanButton
+          label="Scan a place"
+          onScan={(scan, _file, preview) => {
+            setClip({ scan, preview });
+            if (scan.kind === "place-gym") setFilter("gym");
+            if (scan.kind === "place-grocery") setFilter("grocery");
+          }}
+        />
       </div>
+      {clip ? (
+        <Card className="p-5">
+          <ClipResult
+            scan={clip.scan}
+            preview={clip.preview}
+            extra={
+              <Button type="button" tone="ghost" onClick={() => setClip(null)}>
+                Dismiss
+              </Button>
+            }
+          />
+        </Card>
+      ) : null}
       {!here.ready ? (
         <Card className="p-6 text-sm text-mute">
           Use your location or search a city to load gyms and grocers near you.
@@ -150,5 +180,13 @@ export default function MapPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function MapPage() {
+  return (
+    <Suspense fallback={<p className="text-mute">Loading places…</p>}>
+      <MapInner />
+    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { ClipScanButton } from "@/components/ClipScan";
 import { Button, Card, Chip, Eyebrow, Field, Progress } from "@/components/ui";
 import { INGREDIENTS } from "@/lib/data";
 import type { KitchenRecipe } from "@/lib/kitchen";
@@ -212,14 +213,26 @@ export function RecipeKitchen() {
 
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="space-y-4 lg:col-span-5">
-          <Field
-            placeholder="Search name, cuisine, or ingredient"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setShown(48);
-            }}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="min-w-[12rem] flex-1">
+              <Field
+                placeholder="Search name, cuisine, or ingredient"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShown(48);
+                }}
+              />
+            </div>
+            <ClipScanButton
+              label="Scan a plate"
+              onScan={(scan) => {
+                setQuery(scan.caption);
+                setShown(48);
+                store.flash(`Searching recipes for ${scan.caption}`);
+              }}
+            />
+          </div>
           <div className="flex flex-wrap gap-2">
             {categories.map((c) => (
               <Chip

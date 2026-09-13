@@ -1,20 +1,19 @@
 "use client";
 
+import { ClipScanButton } from "@/components/ClipScan";
 import { Button, Field } from "@/components/ui";
 import { clock } from "@/lib/format";
 import { usePact } from "@/lib/store";
 import { personById } from "@/lib/training";
-import { ImagePlus } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 export default function ThreadPage() {
   const { id } = useParams<{ id: string }>();
   const store = usePact();
   const friend = personById(id, store.extraFriends);
   const [text, setText] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
   const msgs = store.messages[id] ?? [];
 
   if (!friend) {
@@ -42,7 +41,7 @@ export default function ThreadPage() {
             ← Inbox
           </Link>
           <h1 className="font-display text-3xl">{friend.name}</h1>
-          <p className="text-sm text-mute">@{friend.handle} · photos stay in this thread</p>
+          <p className="text-sm text-mute">@{friend.handle} · CLIP captions the photo here; it is not uploaded</p>
         </div>
         <Button tone="ghost" onClick={() => store.nudge(friend.id)}>
           Nudge
@@ -71,23 +70,14 @@ export default function ThreadPage() {
         })}
       </div>
       <div className="mt-4 flex items-center gap-2">
-        <button
-          className="rounded-full border border-line p-3 text-mute hover:text-cream"
-          onClick={() => fileRef.current?.click()}
-          aria-label="Share photo"
-        >
-          <ImagePlus className="h-5 w-5" />
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            const url = URL.createObjectURL(file);
-            store.sendMessage(id, file.name, "photo", url);
+        <ClipScanButton
+          label="Photo"
+          onScan={(scan, _file, preview) => {
+            const caption =
+              scan.kind === "food" && scan.food?.top
+                ? `${scan.food.top.name} · ${scan.food.top.kcal} kcal`
+                : scan.caption;
+            store.sendMessage(id, caption, "photo", preview);
           }}
         />
         <Field

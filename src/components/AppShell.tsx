@@ -19,7 +19,6 @@ import {
   MessageCircle,
   Moon,
   Navigation,
-  Radio,
   Shield,
   ChefHat,
   ShoppingBag,
@@ -50,7 +49,6 @@ const NAV = [
   { href: "/wearables", label: "Devices", icon: Watch, group: "More" },
   { href: "/friends", label: "Friends", icon: Users, group: "More" },
   { href: "/chat", label: "Chat", icon: MessageCircle, group: "More" },
-  { href: "/community", label: "Community", icon: Radio, group: "More" },
   { href: "/privacy", label: "Privacy", icon: Shield, group: "More" },
   { href: "/faq", label: "FAQ", icon: HelpCircle, group: "More" },
 ];
@@ -167,6 +165,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        {store.demo ? (
+          <p className="bg-[repeating-linear-gradient(135deg,rgba(214,255,63,0.22)_0_10px,transparent_10px_20px)] px-4 py-2 text-center text-xs font-semibold tracking-wide text-acid">
+            Sample data
+          </p>
+        ) : null}
         <main id="main" className="px-4 pb-28 pt-6 lg:px-8 lg:pb-12">
           {children}
         </main>

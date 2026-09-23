@@ -3,6 +3,7 @@
 import { haversineKm } from "@/lib/data";
 import { readFix } from "@/lib/device-location";
 import type { LiveWeather } from "@/lib/free-apis";
+import { fetchJson } from "@/lib/http";
 import { clientPlaces, clientReverse, clientWeather } from "@/lib/live-client";
 import { usePact } from "@/lib/store";
 import type { Place } from "@/lib/types";
@@ -68,10 +69,14 @@ function writeSaved(here: Here) {
   }
 }
 
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
 function fuzz(lat: number, lng: number, approximate: boolean) {
-  if (!approximate) return { lat, lng };
-  const step = 0.008;
-  return { lat: Math.round(lat / step) * step, lng: Math.round(lng / step) * step };
+  if (!approximate) return { lat: round2(lat), lng: round2(lng) };
+  const step = 0.01;
+  return { lat: round2(Math.round(lat / step) * step), lng: round2(Math.round(lng / step) * step) };
 }
 
 function useCoordsState(): Coords {
@@ -119,46 +124,9 @@ function useCoordsState(): Coords {
   }
 
   function pick(hit: { name: string; lat: number; lng: number }) {
-    apply({ lat: hit.lat, lng: hit.lng, label: hit.name, source: "search" });
+    apply({ lat: round2(hit.lat), lng: round2(hit.lng), label: hit.name, source: "search" });
     setDenied(false);
   }
-
-  useEffect(() => {
-    if (privacy.location === "off") return;
-    const approx = privacy.location !== "precise";
-    let alive = true;
-    void readFix(!approx)
-      .then((fix) => {
-        if (!alive) return;
-        const { lat, lng } = fuzz(fix.lat, fix.lng, approx);
-        setHere((current) => {
-          if (current) return current;
-          const next: Here = { lat, lng, label: "Your area", source: "device" };
-          writeSaved(next);
-          return next;
-        });
-        setDenied(false);
-        void clientReverse(lat, lng)
-          .then((d) => {
-            if (!d.label || !alive) return;
-            const label = d.label;
-            setHere((current) => {
-              if (!current || current.source === "search") return current;
-              if (current.lat !== lat || current.lng !== lng) return current;
-              const next = { ...current, label };
-              writeSaved(next);
-              return next;
-            });
-          })
-          .catch(() => {});
-      })
-      .catch(() => {
-        if (alive) setDenied(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [privacy.location]);
 
   return {
     lat: here?.lat,
@@ -240,9 +208,9 @@ export function useNearbyPlaces(kind: "all" | "gym" | "grocery") {
 }
 
 export async function liveGet<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { cache: "no-store", ...init });
-  if (!res.ok) throw new Error(path);
-  return res.json() as Promise<T>;
+  const result = await fetchJson<T>(path, { cache: "no-store", ...init });
+  if (!result.ok) throw new Error(result.error.message);
+  return result.data;
 }
 
 const weatherWait = new Map<string, Promise<{ weather: LiveWeather }>>();

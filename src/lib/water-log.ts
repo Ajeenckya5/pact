@@ -2,6 +2,7 @@ export type WaterSip = {
   id: string;
   ml: number;
   at: string;
+  source?: "demo" | "log";
 };
 
 export function totalWater(log: WaterSip[]) {

@@ -481,7 +481,7 @@ export function suggestToday(input: SuggestTodayInput): TodaySuggestion {
     headline,
     pick: primary.pick,
     alts,
-    reasons: dedupeLines(reasons),
+    reasons: dedupeLines(reasons).slice(0, 3),
   };
 }
 

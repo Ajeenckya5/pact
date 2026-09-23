@@ -268,7 +268,7 @@ export const FAQS: FaqItem[] = [
     id: "cir-friends",
     category: "Circle",
     q: "Who is in my circle?",
-    a: "Seed friends (Maya, Jordan, Sam, Riley, Chris) plus anyone you add from contacts. Friends, Chat, and Community share that list. Blocked people drop out.",
+    a: "Friends are people you add from your own contacts. Friends and Chat share that list. Blocked people drop out.",
   },
   {
     id: "cir-chat",

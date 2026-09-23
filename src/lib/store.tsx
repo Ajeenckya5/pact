@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -22,7 +23,8 @@ import { rankPlate } from "./plate-vision";
 import { mealSlice, matchIngredient, type DietId, type MealTargets } from "./kitchen";
 import { tap } from "./experience";
 import { askPersistentStorage, clearAccount, readAccount, writeAccount } from "./persist";
-import { pushSip, totalWater, undoLatestSip, type WaterSip } from "./water-log";
+import { entriesToday, latestUndo, removedLabel, undoLabel as labelForUndo } from "./undo-log";
+import { pushSip, totalWater, type WaterSip } from "./water-log";
 import { emptyScore, friendFromContact, mergeContacts, seedScore } from "./training";
 import { migrateConnectedWearables } from "./wearable-live";
 import type {
@@ -166,7 +168,7 @@ const initial: PactState = {
       carbs: 38,
       fat: 9,
       at: "2026-09-12T16:12:00.000Z",
-      source: "ai",
+      source: "demo",
       photo: FOODS[1].photo,
     },
     {
@@ -178,7 +180,7 @@ const initial: PactState = {
       carbs: 14,
       fat: 24,
       at: "2026-09-12T19:40:00.000Z",
-      source: "manual",
+      source: "demo",
     },
   ],
   customFoods: [],
@@ -265,9 +267,9 @@ const initial: PactState = {
   profile: { name: "Alex Rivera", handle: "alex.pact" },
   streak: 47,
   waterLog: [
-    { id: "w1", ml: 1000, at: "2026-09-12T14:00:00.000Z" },
-    { id: "w2", ml: 500, at: "2026-09-12T16:00:00.000Z" },
-    { id: "w3", ml: 350, at: "2026-09-12T18:00:00.000Z" },
+    { id: "w1", ml: 1000, at: "2026-09-12T14:00:00.000Z", source: "demo" },
+    { id: "w2", ml: 500, at: "2026-09-12T16:00:00.000Z", source: "demo" },
+    { id: "w3", ml: 350, at: "2026-09-12T18:00:00.000Z", source: "demo" },
   ],
 };
 
@@ -348,6 +350,10 @@ type Store = PactState & {
   repeatLastMeal: () => void;
   undoLastMeal: () => void;
   undoWater: () => void;
+  undoLatest: () => void;
+  undoLabel: string | null;
+  redo: () => void;
+  canRedo: boolean;
   loadSample: () => void;
   leaveSample: () => void;
   setCheckin: (key: keyof PactState["checkins"], v: boolean) => void;
@@ -433,16 +439,100 @@ export function PactProvider({ children }: { children: ReactNode }) {
     void writeAccount(state);
   }, [state, ready]);
 
-  const flash = useCallback((msg: string) => {
+  const toastTimer = useRef<number | null>(null);
+  const redoRef = useRef<((s: PactState) => PactState) | null>(null);
+  const redoTimer = useRef<number | null>(null);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const flash = useCallback((msg: string, ms = 2400) => {
     setToast(msg);
-    window.setTimeout(() => setToast(null), 2400);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), ms);
   }, []);
 
   const update = useCallback((fn: (s: PactState) => PactState) => {
     setState(fn);
   }, []);
 
+  const offerRedo = useCallback((restore: (s: PactState) => PactState) => {
+    redoRef.current = restore;
+    setCanRedo(true);
+    if (redoTimer.current) window.clearTimeout(redoTimer.current);
+    redoTimer.current = window.setTimeout(() => {
+      redoRef.current = null;
+      setCanRedo(false);
+    }, 6000);
+  }, []);
+
+  const redo = useCallback(() => {
+    const restore = redoRef.current;
+    if (!restore) return;
+    redoRef.current = null;
+    setCanRedo(false);
+    if (redoTimer.current) window.clearTimeout(redoTimer.current);
+    update(restore);
+    flash("Restored");
+  }, [flash, update]);
+
   const api = useMemo<Store>(() => {
+    const undoLatest = () => {
+      const last = latestUndo(entriesToday(state));
+      if (!last) {
+        flash("Nothing to undo");
+        return;
+      }
+      const removed = removedLabel(last);
+      if (last.kind === "water") {
+        const sip = (state.waterLog ?? []).find((row) => row.id === last.id);
+        if (!sip) {
+          flash("Nothing to undo");
+          return;
+        }
+        update((s) => {
+          const waterLog = (s.waterLog ?? []).filter((row) => row.id !== sip.id);
+          const waterMl = totalWater(waterLog);
+          return {
+            ...s,
+            waterLog,
+            waterMl,
+            checkins: { ...s.checkins, water: waterMl >= goalById(s.goal).waterMl },
+          };
+        });
+        offerRedo((current) => {
+          const nextLog = [...(current.waterLog ?? []).filter((row) => row.id !== sip.id), sip];
+          const ml = totalWater(nextLog);
+          return {
+            ...current,
+            waterLog: nextLog,
+            waterMl: ml,
+            checkins: { ...current.checkins, water: ml >= goalById(current.goal).waterMl },
+          };
+        });
+      } else {
+        const meal = state.meals.find((row) => row.id === last.id);
+        if (!meal) {
+          flash("Nothing to undo");
+          return;
+        }
+        update((s) => {
+          const meals = s.meals.filter((row) => row.id !== meal.id);
+          return {
+            ...s,
+            meals,
+            checkins: { ...s.checkins, fuel: mealTotals(meals).protein >= goalById(s.goal).protein },
+          };
+        });
+        offerRedo((current) => {
+          const nextMeals = [meal, ...current.meals.filter((row) => row.id !== meal.id)];
+          return {
+            ...current,
+            meals: nextMeals,
+            checkins: { ...current.checkins, fuel: mealTotals(nextMeals).protein >= goalById(current.goal).protein },
+          };
+        });
+      }
+      flash(`Removed ${removed}`, 6000);
+    };
     return {
       ...state,
       ready,
@@ -487,23 +577,11 @@ export function PactProvider({ children }: { children: ReactNode }) {
         askPersistentStorage();
         flash(ml > 0 ? `Added ${ml} ml` : `Removed ${Math.abs(ml)} ml`);
       },
-      undoWater: () => {
-        let removedMl = 0;
-        update((s) => {
-          const next = undoLatestSip(s.waterLog ?? []);
-          if (!next.removed) return s;
-          removedMl = next.removed.ml;
-          const waterMl = totalWater(next.log);
-          const goal = goalById(s.goal).waterMl;
-          return {
-            ...s,
-            waterLog: next.log,
-            waterMl,
-            checkins: { ...s.checkins, water: waterMl >= goal },
-          };
-        });
-        flash(removedMl ? `Removed ${removedMl} ml` : "Nothing to undo");
-      },
+      undoLatest,
+      undoLabel: labelForUndo(latestUndo(entriesToday(state))),
+      redo,
+      canRedo,
+      undoWater: undoLatest,
       loadSample: () => {
         update((s) => ({ ...sampleAccount, prefs: { ...sampleAccount.prefs, onboarded: s.prefs.onboarded } }));
         flash("Sample data on");
@@ -795,16 +873,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
         flash("Repeated last meal");
         tap();
       },
-      undoLastMeal: () => {
-        update((s) => {
-          if (!s.meals[0]) return s;
-          const meals = s.meals.slice(1);
-          const tot = mealTotals(meals);
-          const g = goalById(s.goal);
-          return { ...s, meals, checkins: { ...s.checkins, fuel: tot.protein >= g.protein } };
-        });
-        flash("Undid last meal");
-      },
+      undoLastMeal: undoLatest,
       setCheckin: (key, v) => {
         update((s) => ({ ...s, checkins: { ...s.checkins, [key]: v } }));
         if (v) tap();
@@ -964,7 +1033,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
         flash("Invite dismissed");
       },
     };
-  }, [state, ready, toast, flash, update]);
+  }, [state, ready, toast, flash, update, offerRedo, redo, canRedo]);
 
   if (!ready) {
     return (

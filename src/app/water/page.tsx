@@ -73,15 +73,9 @@ export default function WaterPage() {
               Add heat bonus
             </Button>
           ) : null}
-          {(() => {
-            const last = [...(store.waterLog ?? [])].sort((a, b) => a.at.localeCompare(b.at)).at(-1);
-            const shownUndo = last ? formatWater(last.ml, units) : null;
-            return (
-              <Button className="mt-4 w-full" tone="quiet" disabled={!last} onClick={() => store.undoWater()}>
-                {shownUndo ? `Undo ${fmt(shownUndo.value)} ${shownUndo.unit}` : "Nothing to undo"}
-              </Button>
-            );
-          })()}
+          <Button className="mt-4 w-full" tone="quiet" disabled={!store.undoLabel} onClick={() => store.undoLatest()}>
+            {store.undoLabel ?? "Nothing to undo"}
+          </Button>
         </div>
       </Card>
 

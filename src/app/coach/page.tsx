@@ -12,7 +12,6 @@ import {
 import { mealTotals, useGoal, usePact } from "@/lib/store";
 import { todayLogs } from "@/lib/training";
 import type { CoachMessage } from "@/lib/types";
-import { USER } from "@/lib/data";
 import { clock } from "@/lib/format";
 import { useLiveWeather } from "@/lib/use-live";
 import { liveSourceLine } from "@/lib/wearable-live";
@@ -24,7 +23,7 @@ export default function CoachPage() {
   const store = usePact();
   const goal = useGoal();
   const totals = mealTotals(store.meals);
-  const { weather } = useLiveWeather();
+  const { weather, error: weatherError } = useLiveWeather();
   const { body } = useLiveBody();
   const [text, setText] = useState("");
   const [deskQuery, setDeskQuery] = useState("");
@@ -33,7 +32,7 @@ export default function CoachPage() {
 
   const ctx = useMemo(
     () => ({
-      name: USER.name,
+      name: store.profile.name.trim() || "You",
       goal,
       recovery: body.recovery,
       strain: body.strain,
@@ -58,6 +57,7 @@ export default function CoachPage() {
       body,
       totals.protein,
       totals.kcal,
+      store.profile.name,
       store.waterMl,
       store.workoutLogs,
       store.favoriteWorkouts,
@@ -114,6 +114,7 @@ export default function CoachPage() {
             </Link>
             .
           </p>
+          {weatherError ? <p className="mt-2 text-sm text-heat">Weather did not load. Coach still uses your log.</p> : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Chip active={tab === "chat"} onClick={() => setTab("chat")}>

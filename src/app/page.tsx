@@ -30,7 +30,7 @@ export default function OverviewPage() {
   const protein = Math.min(100, (totals.protein / goal.protein) * 100);
   const week = weekStats(store.workoutLogs);
   const trained = todayLogs(store.workoutLogs);
-  const circle = peopleInCircle(store.friends, store.extraFriends);
+  const circle = peopleInCircle(store.friends, store.extraFriends, store.demo);
   const remaining = remainingMacros(totals, goal);
   const recap = weekRecap(
     store.history,
@@ -52,7 +52,7 @@ export default function OverviewPage() {
           <Eyebrow>Live · {here.ready && here.label ? here.label : store.demo ? "San Francisco" : "Set a city"}</Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">
             {store.demo
-              ? `Good training weather, ${(store.profile.name || "Alex").split(" ")[0]}.`
+              ? `Good training weather, ${(store.profile.name.trim() || "you").split(" ")[0]}.`
               : "Today is empty until you log it."}
           </h1>
           <p className="mt-3 max-w-xl text-mute">

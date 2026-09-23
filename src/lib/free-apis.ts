@@ -79,9 +79,9 @@ export type GeoHit = {
   country: string;
 };
 
-async function getJson(url: string, init?: RequestInit) {
+async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   const browser = typeof window !== "undefined";
-  return fetchJson(url, {
+  const result = await fetchJson<T>(url, {
     ...init,
     cache: "no-store",
     headers: {
@@ -89,8 +89,10 @@ async function getJson(url: string, init?: RequestInit) {
       ...(browser ? {} : { "User-Agent": UA }),
       ...(init?.headers ?? {}),
     },
-    timeoutMs: 24_000,
+    timeoutMs: 8_000,
   });
+  if (!result.ok) throw new Error(result.error.message);
+  return result.data;
 }
 
 export function weatherLabel(code: number) {
@@ -541,23 +543,16 @@ export async function geocode(q: string): Promise<GeoHit[]> {
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const roundedLat = Math.round(lat * 100) / 100;
+  const roundedLng = Math.round(lng * 100) / 100;
   try {
     const data = (await getJson(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${roundedLat}&longitude=${roundedLng}&localityLanguage=en`,
     )) as { city?: string; locality?: string; principalSubdivision?: string; countryName?: string };
-    const label = [data.city || data.locality, data.principalSubdivision, data.countryName].filter(Boolean).join(", ");
-    if (label) return label;
+    return [data.city || data.locality, data.principalSubdivision, data.countryName].filter(Boolean).join(", ");
   } catch {
-    /* nominatim fallback */
+    return "";
   }
-  const nom = (await getJson(
-    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2`,
-  )) as { address?: Record<string, string>; display_name?: string };
-  const a = nom.address ?? {};
-  const label = [a.neighbourhood || a.suburb || a.city || a.town || a.village, a.state, a.country]
-    .filter(Boolean)
-    .join(", ");
-  return label || nom.display_name || "Your area";
 }
 
 function num(v: number | string | undefined) {

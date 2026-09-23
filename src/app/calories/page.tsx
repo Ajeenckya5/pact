@@ -268,8 +268,8 @@ export default function CaloriesPage() {
               <Button tone="ghost" onClick={() => store.repeatLastMeal()}>
                 Repeat last
               </Button>
-              <Button tone="quiet" onClick={() => store.undoLastMeal()}>
-                Undo last
+              <Button tone="quiet" disabled={!store.undoLabel} onClick={() => store.undoLatest()}>
+                {store.undoLabel ?? "Undo last"}
               </Button>
             </>
           ) : null}

@@ -44,7 +44,7 @@ export function WorkoutDesk() {
   const [tab, setTabState] = useState<Tab>(fromUrl);
   const [clip, setClip] = useState<{ scan: AppPhotoScan; preview: string } | null>(null);
   const [groupSeed, setGroupSeed] = useState<{ title: string; templateId: string } | null>(null);
-  const circle = peopleInCircle(store.friends, store.extraFriends);
+  const circle = peopleInCircle(store.friends, store.extraFriends, store.demo);
   const week = weekStats(store.workoutLogs);
   const today = todayLogs(store.workoutLogs);
   const common = rankedCommon(store.workoutLogs);
@@ -98,7 +98,7 @@ export function WorkoutDesk() {
                 <div>
                   <p className="font-medium">{g.title}</p>
                   <p className="text-sm text-mute">
-                    {g.hostId === "me" ? "You" : peopleInCircle(store.friends, store.extraFriends).find((f) => f.id === g.hostId)?.name ?? g.hostId}{" "}
+                    {g.hostId === "me" ? "You" : peopleInCircle(store.friends, store.extraFriends, store.demo).find((f) => f.id === g.hostId)?.name ?? g.hostId}{" "}
                     · {g.mode === "race" ? "Race" : "Together"} · {g.category}
                   </p>
                 </div>

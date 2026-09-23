@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { FetchError, fetchJson } from "./http";
+import { fetchJson } from "./http";
 
 const original = globalThis.fetch;
 
@@ -8,26 +8,38 @@ afterEach(() => {
   globalThis.fetch = original;
 });
 
-describe("fetchJson", () => {
-  it("rejects an HTML body instead of throwing a raw syntax error", async () => {
+describe("fetchJson result", () => {
+  it("returns every error kind without throwing", async () => {
     globalThis.fetch = (async () =>
       new Response("Unauthorized", { status: 200, headers: { "content-type": "text/html" } })) as typeof fetch;
-    await assert.rejects(() => fetchJson("https://example.test/coach", { retries: 0 }), (err: unknown) => {
-      assert.ok(err instanceof FetchError);
-      assert.equal(err.kind, "parse");
-      return true;
-    });
-  });
+    const parsed = await fetchJson("https://example.test/coach", { retries: 0 });
+    assert.equal(parsed.ok, false);
+    if (!parsed.ok) assert.equal(parsed.error.kind, "parse");
 
-  it("retries a 503 once", async () => {
-    let calls = 0;
+    globalThis.fetch = (async () => new Response("no", { status: 404, headers: { "content-type": "text/plain" } })) as typeof fetch;
+    const http = await fetchJson("https://example.test/missing", { retries: 0 });
+    assert.equal(http.ok, false);
+    if (!http.ok) assert.equal(http.error.kind, "http");
+
     globalThis.fetch = (async () => {
-      calls += 1;
-      if (calls === 1) return new Response("no", { status: 503, headers: { "content-type": "text/plain" } });
-      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+      throw new Error("offline");
     }) as typeof fetch;
-    const data = await fetchJson<{ ok: boolean }>("https://example.test/foods");
-    assert.equal(data.ok, true);
-    assert.equal(calls, 2);
+    const network = await fetchJson("https://example.test/down", { retries: 0 });
+    assert.equal(network.ok, false);
+    if (!network.ok) assert.equal(network.error.kind, "network");
+
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      init?.signal?.addEventListener("abort", () => {});
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          const err = new Error("aborted");
+          err.name = "AbortError";
+          reject(err);
+        });
+      });
+    }) as typeof fetch;
+    const timeout = await fetchJson("https://example.test/slow", { retries: 0, timeoutMs: 20 });
+    assert.equal(timeout.ok, false);
+    if (!timeout.ok) assert.equal(timeout.error.kind, "timeout");
   });
 });

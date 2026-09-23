@@ -12,7 +12,7 @@ export default function GroupWorkoutPage() {
   const { id } = useParams<{ id: string }>();
   const store = usePact();
   const group = store.groups.find((g) => g.id === id);
-  const circle = peopleInCircle(store.friends, store.extraFriends);
+  const circle = peopleInCircle(store.friends, store.extraFriends, store.demo);
   const [invite, setInvite] = useState<string[]>([]);
 
   if (!group) {

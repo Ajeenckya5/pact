@@ -1,4 +1,5 @@
 import { jsonOk } from "@/app/api/_util";
+import { fetchStatus } from "../../../../packages/core/src/net";
 
 const FEEDS = [
   { id: "open-meteo", name: "Open-Meteo", use: "Weather, UV, sunrise, air quality", url: "https://api.open-meteo.com", key: false },
@@ -29,11 +30,8 @@ export async function GET() {
                   : feed.id === "osm"
                     ? "https://tile.openstreetmap.org/0/0/0.png"
                     : "https://overpass-api.de/api/status";
-        const res = await fetch(probe, {
-          headers: { "User-Agent": "PactAccountability/1.0" },
-          signal: AbortSignal.timeout(8000),
-        });
-        return { ...feed, ok: res.ok, ms: Date.now() - started };
+        const ok = await fetchStatus(probe);
+        return { ...feed, ok, ms: Date.now() - started };
       } catch {
         return { ...feed, ok: false, ms: Date.now() - started };
       }

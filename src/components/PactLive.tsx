@@ -1,6 +1,6 @@
 "use client";
 
-import { openEnvelope, pactHeaders, shouldSendReceipt, type Flags, type PactEnvelope } from "@pact/core";
+import { createEpochKey, openEnvelope, openEpochKey, pactHeaders, sealEpochKey, shouldSendReceipt, signBytes, socketCanon, type Flags, type PactEnvelope } from "@pact/core";
 import { pactApi } from "@/lib/api-origin";
 import { queueEnvelope } from "@/lib/deliver";
 import { tap } from "@/lib/experience";
@@ -8,7 +8,7 @@ import { readCachedFlags, refreshFlags } from "@/lib/flags";
 import { fetchJson } from "@/lib/http";
 import { deviceIdentity } from "@/lib/identity";
 import { flushOutbox, outboxSnapshot, subscribeOutbox } from "@/lib/outbox";
-import { roomSnapshot, subscribeRoom, type LivePact } from "@/lib/pact-session";
+import { issueJoinMac, roomSnapshot, setEpochKey, subscribeRoom, type LivePact } from "@/lib/pact-session";
 import { celebrationMode } from "@/lib/personal-today";
 import { usePact } from "@/lib/store";
 import type { ChatMessage } from "@/lib/types";
@@ -92,10 +92,13 @@ export function PactLive({ children }: { children: ReactNode }) {
     void refreshFlags().then((next) => setFlags(next));
   }, []);
 
+  const pactId = room?.pactId;
   useEffect(() => {
-    if (!room || flags.realtime === "off") return;
+    if (!pactId || flags.realtime === "off") return;
     let ws: WebSocket | null = null;
     let cancelled = false;
+    const peers = new Map<string, string>();
+    let epochKey = roomSnapshot()?.epochKey ?? null;
     const onFrame = (raw: string) => {
       let frame: PactEnvelope;
       try {
@@ -103,35 +106,73 @@ export function PactLive({ children }: { children: ReactNode }) {
       } catch {
         return;
       }
-      if (!frame.ct || frame.senderPk === liveApi.pk) return;
-      void openEnvelope(room.secret, frame)
+      if (!frame.ct || !epochKey || frame.senderPk === liveApi.pk) return;
+      void openEnvelope(epochKey, frame)
         .then((payload) => applyFrame(frame.kind, payload, partnerRef, setPartner))
         .catch(() => {});
     };
+    const markOpen = () => setPartner((current) => ({ ...current, live: "open" }));
     void (async () => {
       const keys = await deviceIdentity();
       if (cancelled) return;
       liveApi.pk = keys.pk;
+      const mac = await issueJoinMac(pactId);
+      if (mac) {
+        const path = `/pacts/${pactId}/join`;
+        const body = JSON.stringify({ mac });
+        const headers = await pactHeaders(keys, { method: "POST", path, body });
+        void fetchJson(pactApi(path), { method: "POST", headers: { "content-type": "application/json", ...headers }, body, retries: 0 });
+      }
       const result = await fetchJson<{ url: string | null }>(pactApi("/live"), { retries: 0 });
       if (cancelled) return;
       const url = result.ok ? result.data.url : null;
       if (!url) return;
-      const path = `/pacts/${room.pactId}`;
-      const headers = await pactHeaders(keys, { method: "GET", path, body: "" });
-      if (cancelled) return;
-      const query = new URLSearchParams();
-      for (const [key, value] of Object.entries(headers)) query.set(key.toLowerCase(), value);
-      ws = new WebSocket(`${url}${path}?${query}`);
-      ws.onopen = () => {
-        setPartner((current) => ({ ...current, live: "open" }));
+      const path = `/pacts/${pactId}`;
+      ws = new WebSocket(`${url}${path}`);
+      ws.onmessage = (event) => {
+        void (async () => {
+          const raw = String(event.data);
+          let parsed: { nonce?: string; type?: string; pk?: string; x25519?: string; seals?: Array<{ pk?: string; box?: string }> };
+          try {
+            parsed = JSON.parse(raw) as typeof parsed;
+          } catch {
+            return;
+          }
+          if (parsed.type === "challenge" && parsed.nonce && ws) {
+            const sig = await signBytes(keys.sk, socketCanon(parsed.nonce, pactId, keys.pk));
+            ws.send(JSON.stringify({ pk: keys.pk, sig }));
+            ws.send(JSON.stringify({ type: "hello", pk: keys.pk, x25519: keys.boxPk }));
+            return;
+          }
+          if (parsed.type === "hello" && parsed.pk && parsed.x25519 && parsed.pk !== keys.pk) {
+            peers.set(parsed.pk, parsed.x25519);
+            if (!epochKey && [...peers.keys(), keys.pk].sort()[0] === keys.pk) {
+              epochKey = await createEpochKey();
+              setEpochKey(pactId, epochKey);
+              const seals = [{ pk: keys.pk, box: await sealEpochKey(epochKey, keys.boxPk) }];
+              for (const [pk, boxPk] of peers) seals.push({ pk, box: await sealEpochKey(epochKey, boxPk) });
+              ws?.send(JSON.stringify({ type: "epoch", seals }));
+              markOpen();
+            }
+            return;
+          }
+          if (parsed.type === "epoch" && parsed.seals && !epochKey) {
+            const mine = parsed.seals.find((seal) => seal.pk === keys.pk && seal.box);
+            if (!mine?.box) return;
+            epochKey = await openEpochKey(mine.box, keys.boxPk, keys.boxSk);
+            setEpochKey(pactId, epochKey);
+            markOpen();
+            return;
+          }
+          onFrame(raw);
+        })();
       };
-      ws.onmessage = (event) => onFrame(String(event.data));
     })();
     return () => {
       cancelled = true;
       ws?.close();
     };
-  }, [room, flags.realtime]);
+  }, [pactId, flags.realtime]);
 
   useEffect(() => {
     const signature = JSON.stringify(store.checkins);
@@ -141,24 +182,24 @@ export function PactLive({ children }: { children: ReactNode }) {
     }
     if (prevBoxes.current === signature) return;
     prevBoxes.current = signature;
-    if (!room || flags.sync === "off") return;
-    void sendLive(room, "boxes", store.checkins);
+    if (!room?.epochKey || flags.sync === "off") return;
+    void sendLive(room.pactId, room.epochKey, "boxes", store.checkins);
   }, [store.checkins, room, flags.sync]);
 
   useEffect(() => {
     const onMessage = (event: Event) => {
       const detail = (event as CustomEvent<{ threadId: string; id: string; text: string }>).detail;
-      if (!room || flags.sync === "off") {
+      if (!room?.epochKey || flags.sync === "off") {
         liveApi.mark(detail.threadId, detail.id, "delivered");
         return;
       }
-      void sendLive(room, "chat", { threadId: detail.threadId, messageId: detail.id, text: detail.text }).then((ok) => {
+      void sendLive(room.pactId, room.epochKey, "chat", { threadId: detail.threadId, messageId: detail.id, text: detail.text }).then((ok) => {
         liveApi.mark(detail.threadId, detail.id, ok ? "delivered" : "failed");
       });
     };
     const onNudge = () => {
-      if (!room || flags.sync === "off") return;
-      void sendLive(room, "nudge", {});
+      if (!room?.epochKey || flags.sync === "off") return;
+      void sendLive(room.pactId, room.epochKey, "nudge", {});
     };
     window.addEventListener("pact-message", onMessage);
     window.addEventListener("pact-nudge", onNudge);
@@ -232,12 +273,12 @@ function applyFrame(
   } else if (kind === "seen" && record.threadId && record.messageId) {
     liveApi.mark(record.threadId, record.messageId, "seen");
   } else if (kind === "chat" && record.threadId && record.messageId && liveApi.receipts && liveApi.room) {
-    void sendLive(liveApi.room, "seen", { threadId: record.threadId, messageId: record.messageId });
+    if (liveApi.room.epochKey) void sendLive(liveApi.room.pactId, liveApi.room.epochKey, "seen", { threadId: record.threadId, messageId: record.messageId });
   }
 }
 
-async function sendLive(room: LivePact, kind: "boxes" | "chat" | "nudge" | "seen", payload: unknown) {
-  const ok = await queueEnvelope(room.pactId, room.secret, kind, payload);
+async function sendLive(pactId: string, epochKey: Uint8Array, kind: "boxes" | "chat" | "nudge" | "seen", payload: unknown) {
+  const ok = await queueEnvelope(pactId, epochKey, kind, payload);
   const name = kind === "boxes" ? "boxes" : kind === "nudge" ? "nudge" : kind === "seen" ? "seen" : "sync";
   if (ok) {
     void fetchJson(pactApi("/events"), {

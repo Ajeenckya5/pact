@@ -60,7 +60,12 @@ export function epochUtcMs(epoch: number) {
   return Date.UTC(year, month - 1, day);
 }
 
-export function retained(epoch: number, today: number, days = 30) {
+/** Messages stay 180 days. Check-ins stay 400, which is the spec window. */
+export function retentionDays(kind: string) {
+  return kind === "boxes" ? 400 : 180;
+}
+
+export function retained(epoch: number, today: number, days = 180) {
   if (!Number.isInteger(epoch) || epoch < 19700101) return false;
   return epochUtcMs(today) - epochUtcMs(epoch) <= days * 86_400_000;
 }
@@ -113,6 +118,10 @@ export function foreignFields(value: unknown): string[] {
 
 export function readableHealth(raw: string) {
   return READABLE.test(raw);
+}
+
+export function socketCanon(nonce: string, pactId: string, pk: string) {
+  return `${nonce}.${pactId}.${pk}`;
 }
 
 export function envelopeCanon(envelope: Omit<PactEnvelope, "sig">) {

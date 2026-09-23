@@ -6,7 +6,7 @@ import { queueEnvelope } from "@/lib/deliver";
 import { deviceIdentity } from "@/lib/identity";
 import { pactApi, reportApi } from "@/lib/api-origin";
 import { fetchJson } from "@/lib/http";
-import { rememberPact } from "@/lib/pact-session";
+import { rememberPact, roomSnapshot } from "@/lib/pact-session";
 import { usePact } from "@/lib/store";
 import Link from "next/link";
 import { useState } from "react";
@@ -53,17 +53,19 @@ export default function PeoplePage() {
 
   async function send() {
     const text = note.trim();
-    if (!pactId || !secret || !text) return;
+    const epochKey = roomSnapshot()?.epochKey;
+    if (!pactId || !epochKey || !text) return;
     const keys = await deviceIdentity();
     setSelfPk(keys.pk);
-    const ok = await queueEnvelope(pactId, secret, "chat", { text });
+    const ok = await queueEnvelope(pactId, epochKey, "chat", { text });
     store.flash(ok ? "Message sent" : "Saved on this device. It sends when the pact server answers.");
     setInbox((lines) => [...lines, { id: crypto.randomUUID(), sender: keys.pk, text }]);
     setNote("");
   }
 
   async function refresh() {
-    if (!pactId || !secret) return;
+    const epochKey = roomSnapshot()?.epochKey;
+    if (!pactId || !epochKey) return;
     const keys = await deviceIdentity();
     setSelfPk(keys.pk);
     const path = `/pacts/${pactId}/messages`;
@@ -79,7 +81,7 @@ export default function PeoplePage() {
     const lines: Array<{ id: string; sender: string; text: string }> = [];
     for (const message of result.data.messages ?? []) {
       if (store.blocked.includes(message.senderPk)) continue;
-      const payload = (await openEnvelope(secret, message)) as { text?: string };
+      const payload = (await openEnvelope(epochKey, message)) as { text?: string };
       lines.push({
         id: crypto.randomUUID(),
         sender: message.senderPk,

@@ -1,3 +1,8 @@
+interface WebSocket {
+  serializeAttachment(value: unknown): void;
+  deserializeAttachment(): unknown;
+}
+
 declare class WebSocketPair {
   0: WebSocket;
   1: WebSocket;

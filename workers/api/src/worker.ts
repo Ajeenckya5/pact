@@ -1,4 +1,5 @@
 import { PactRoom } from "./durable";
+import { originAllowed } from "./origin";
 import { notifyPartners, saveSubscription } from "./push";
 import { signedRequest } from "./room";
 import { applyFlag, countEvent, normalizeFlags, type Flags } from "../../../packages/core/src/wire";
@@ -38,10 +39,7 @@ async function loadCounts(env: Env) {
 }
 
 function allowedOrigin(origin: string) {
-  if (origin === "http://localhost:3000" || origin === "http://127.0.0.1:3000") return origin;
-  if (origin === "https://ajeenckya5.github.io" || origin === "https://pact-aj.pages.dev") return origin;
-  if (/^https:\/\/[a-z0-9-]+\.pact-aj\.pages\.dev$/.test(origin)) return origin;
-  return "";
+  return originAllowed(origin);
 }
 
 function withCors(request: Request, response: Response) {

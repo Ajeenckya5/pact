@@ -15,8 +15,26 @@ async function ready() {
   return sodium;
 }
 
-function messageKey(lib: typeof sodium, inviteSecret: string) {
-  return lib.crypto_generichash(32, lib.from_string(inviteSecret), lib.from_string("pact-xchacha-v1"));
+export async function createEpochKey() {
+  const lib = await ready();
+  return lib.randombytes_buf(lib.crypto_aead_xchacha20poly1305_ietf_KEYBYTES);
+}
+
+/** Seal the epoch key to one member. The invite secret is not an input. */
+export async function sealEpochKey(epochKey: Uint8Array, memberPublicKey: string) {
+  const lib = await ready();
+  return bytesToB64Url(lib.crypto_box_seal(epochKey, b64UrlToBytes(memberPublicKey)));
+}
+
+export async function openEpochKey(box: string, memberPublicKey: string, memberSecretKey: string) {
+  const lib = await ready();
+  return lib.crypto_box_seal_open(b64UrlToBytes(box), b64UrlToBytes(memberPublicKey), b64UrlToBytes(memberSecretKey));
+}
+
+export async function createBoxKey() {
+  const lib = await ready();
+  const pair = lib.crypto_box_keypair();
+  return { publicKey: bytesToB64Url(pair.publicKey), secretKey: bytesToB64Url(pair.privateKey) };
 }
 
 export async function createSigningKey() {
@@ -47,9 +65,9 @@ export async function pactHeaders(
   };
 }
 
-/** Health values stay inside ct. libsodium XChaCha20-Poly1305, signed with Ed25519. */
+/** Health values stay inside ct. The key is the per-epoch pact key, not the invite secret. */
 export async function sealEnvelope(input: {
-  inviteSecret: string;
+  epochKey: Uint8Array;
   pactId: string;
   senderPk: string;
   senderSk: string;
@@ -62,7 +80,8 @@ export async function sealEnvelope(input: {
   const now = input.now ?? Date.now();
   const offsetMin = input.offsetMin ?? -new Date(now).getTimezoneOffset();
   const epoch = localEpoch(now, offsetMin);
-  const key = messageKey(lib, input.inviteSecret);
+  if (input.epochKey.length !== lib.crypto_aead_xchacha20poly1305_ietf_KEYBYTES) throw new Error("rejected");
+  const key = input.epochKey;
   const nonce = lib.randombytes_buf(lib.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
   const ad = new TextEncoder().encode(`${input.pactId}.${epoch}.${input.senderPk}.${input.kind}`);
   const ct = lib.crypto_aead_xchacha20poly1305_ietf_encrypt(
@@ -85,11 +104,11 @@ export async function sealEnvelope(input: {
   return { ...draft, sig };
 }
 
-export async function openEnvelope(inviteSecret: string, envelope: PactEnvelope) {
+export async function openEnvelope(epochKey: Uint8Array, envelope: PactEnvelope) {
   const signed = await verifyEd25519(envelope.senderPk, envelope.sig, envelopeCanon(envelope));
   if (!signed) throw new Error("rejected");
   const lib = await ready();
-  const key = messageKey(lib, inviteSecret);
+  const key = epochKey;
   const ad = new TextEncoder().encode(`${envelope.pactId}.${envelope.epoch}.${envelope.senderPk}.${envelope.kind}`);
   const clear = lib.crypto_aead_xchacha20poly1305_ietf_decrypt(null, b64UrlToBytes(envelope.ct), ad, b64UrlToBytes(envelope.nonce), key);
   return JSON.parse(new TextDecoder().decode(clear)) as unknown;

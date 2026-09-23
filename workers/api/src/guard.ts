@@ -13,6 +13,9 @@ const BANNED_KEYS = [
   "water",
   "kcal",
   "steps",
+  "access_token",
+  "refresh_token",
+  "authorization",
 ];
 
 export type CipherEnvelope = {

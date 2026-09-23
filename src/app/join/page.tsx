@@ -13,6 +13,7 @@ export default function JoinPage() {
     if (parsed) {
       const current = JSON.parse(localStorage.getItem(key) || "[]") as string[];
       if (!current.includes(parsed.pactId)) localStorage.setItem(key, JSON.stringify([...current, parsed.pactId]));
+      sessionStorage.setItem(`pact.secret.${parsed.pactId}`, parsed.inviteSecret);
     }
     const next = parsed
       ? "You joined this pact on this device. Messages stay encrypted."

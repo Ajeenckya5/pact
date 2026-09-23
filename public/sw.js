@@ -11,6 +11,17 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("push", (event) => {
+  let title = "Update available";
+  try {
+    const data = event.data ? event.data.json() : null;
+    if (data && data.title) title = data.title;
+  } catch {
+    title = "Update available";
+  }
+  event.waitUntil(self.registration.showNotification(title, { body: "Open Pact to read it.", tag: "pact-update" }));
+});
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;

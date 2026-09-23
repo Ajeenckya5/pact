@@ -93,6 +93,12 @@ export default function LogPage() {
         <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/water">
           Water details
         </Link>
+        <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/recipes">
+          Recipes
+        </Link>
+        <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/fuel">
+          Market
+        </Link>
       </div>
     </div>
   );

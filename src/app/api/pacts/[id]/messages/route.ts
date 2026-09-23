@@ -1,28 +1,25 @@
-import { roomFor } from "../../../../../../workers/api/src/index";
+import { forward } from "@pact/core";
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  return Response.json({ messages: roomFor(id).messages });
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function origin() {
+  return process.env.PACT_API_ORIGIN ?? "http://127.0.0.1:8788";
 }
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+async function proxy(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return new Response("Bad request", { status: 400 });
-  }
-  try {
-    roomFor(id).post(body);
-    return Response.json({ ok: true }, { status: 201 });
-  } catch {
-    return new Response("Rejected", { status: 400 });
-  }
+  return forward(request, `${origin()}/pacts/${encodeURIComponent(id)}/messages`);
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  roomFor(id).wipe();
-  return new Response(null, { status: 204 });
+export function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  return proxy(request, context);
+}
+
+export function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  return proxy(request, context);
+}
+
+export function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  return proxy(request, context);
 }

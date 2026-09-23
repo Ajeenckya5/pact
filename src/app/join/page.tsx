@@ -2,6 +2,7 @@
 
 import { Card, Eyebrow } from "@/components/ui";
 import { parseInviteFragment } from "@pact/core";
+import { rememberPact } from "@/lib/pact-session";
 import { useEffect, useState } from "react";
 
 export default function JoinPage() {
@@ -13,6 +14,7 @@ export default function JoinPage() {
     if (parsed) {
       const current = JSON.parse(localStorage.getItem(key) || "[]") as string[];
       if (!current.includes(parsed.pactId)) localStorage.setItem(key, JSON.stringify([...current, parsed.pactId]));
+      rememberPact(parsed.pactId, parsed.inviteSecret);
     }
     const next = parsed
       ? "You joined this pact on this device. Messages stay encrypted."

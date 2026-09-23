@@ -18,7 +18,13 @@ export default function StravaPage() {
             Connect Strava to pull GPS, kudos, and segments. Pact maps them onto strain and today&apos;s move check-in. Your feed stays yours under Privacy.
           </p>
         </div>
-        <Button tone={store.stravaConnected ? "ghost" : "accent"} onClick={() => store.setStrava(!store.stravaConnected)}>
+        <Button
+          tone={store.stravaConnected ? "ghost" : "accent"}
+          onClick={() => {
+            if (store.stravaConnected) store.setStrava(false);
+            else store.flash("Strava connect runs on the Pact server. Add the client id there, then try again.");
+          }}
+        >
           {store.stravaConnected ? "Disconnect" : "Connect Strava"}
         </Button>
       </div>
@@ -26,7 +32,9 @@ export default function StravaPage() {
       {!store.stravaConnected ? (
         <Card className="p-8 text-center">
           <Activity className="mx-auto h-8 w-8 text-heat" />
-          <p className="mt-4 text-mute">OAuth in production. This demo toggles a live-looking feed.</p>
+          <p className="mt-4 text-mute">
+            The token exchange lives on the Pact server. Tokens stay encrypted there, and you can delete them.
+          </p>
         </Card>
       ) : (
         <div className="space-y-3">

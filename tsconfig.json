@@ -31,7 +31,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "workers/api/src/cloudflare-workers.d.ts"
   ],
   "exclude": ["node_modules", "apps", "personas"]
 }

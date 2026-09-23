@@ -21,6 +21,7 @@ import {
 import { combinePactScore } from "./algos";
 import { rankPlate } from "./plate-vision";
 import { mealSlice, matchIngredient, type DietId, type MealTargets } from "./kitchen";
+import { localEpoch, localHour, nudgeDecision } from "@pact/core";
 import { tap } from "./experience";
 import { askPersistentStorage, clearAccount, readAccount, writeAccount } from "./persist";
 import { entriesToday, latestUndo, removedLabel, undoLabel as labelForUndo } from "./undo-log";
@@ -43,6 +44,7 @@ import type {
   CustomFood,
   MealLog,
   Order,
+  PactReport,
   PrivacyLevel,
   PrivacySettings,
   Prefs,
@@ -80,6 +82,8 @@ export type PactState = {
   checkins: { sleep: boolean; fuel: boolean; water: boolean; move: boolean };
   readingMin: number;
   blocked: string[];
+  reports: PactReport[];
+  deviceId: string;
   recovery: number;
   strain: number;
   sleepScore: number;
@@ -251,6 +255,9 @@ const initial: PactState = {
   checkins: { sleep: true, fuel: false, water: false, move: false },
   readingMin: 22,
   blocked: [],
+  reports: [],
+  deviceId:
+    typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : "device",
   recovery: 86,
   strain: 11.2,
   sleepScore: 84,
@@ -259,7 +266,7 @@ const initial: PactState = {
   rhr: 51,
   steps: 9640,
   history: seedHistory(),
-  prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark" },
+  prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark", seenReceipts: true },
   favoriteFoods: ["chicken", "yogurt", "rice"],
   favoriteWorkouts: ["lift-squat", "full-body"],
   schema: 2,
@@ -305,7 +312,7 @@ function blankAccount(): PactState {
     history: [],
     favoriteFoods: [],
     favoriteWorkouts: [],
-    prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark" },
+    prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark", seenReceipts: true },
   };
 }
 
@@ -333,8 +340,11 @@ type Store = PactState & {
   setMealTargets: (t: MealTargets) => void;
   resetMealTargets: () => void;
   placeOrder: (address: string, opts?: { storeId?: string; storeName?: string }) => Order;
-  sendMessage: (threadId: string, text: string, kind?: ChatMessage["kind"], photo?: string) => void;
+  sendMessage: (threadId: string, text: string, kind?: ChatMessage["kind"], photo?: string) => string;
+  markMessage: (threadId: string, messageId: string, status: NonNullable<ChatMessage["status"]>) => void;
   nudge: (friendId: string) => void;
+  blockPerson: (id: string) => void;
+  reportMessage: (threadId: string, messageId: string, reason: string, text?: string) => boolean;
   appendCoach: (messages: CoachMessage[]) => void;
   clearCoach: () => void;
   toggleLike: (postId: string) => void;
@@ -419,6 +429,9 @@ export function PactProvider({ children }: { children: ReactNode }) {
               favoriteFoods: parsed.favoriteFoods ?? s.favoriteFoods,
               favoriteWorkouts: parsed.favoriteWorkouts ?? s.favoriteWorkouts,
               connectedWearables: migrateConnectedWearables(parsed.connectedWearables),
+              blocked: parsed.blocked ?? [],
+              reports: parsed.reports ?? [],
+              deviceId: parsed.deviceId || s.deviceId,
             };
           });
         }
@@ -560,10 +573,13 @@ export function PactProvider({ children }: { children: ReactNode }) {
       addWater: (ml) => {
         if (!ml) return;
         update((s) => {
+          const at = new Date().toISOString();
           const waterLog = pushSip(s.waterLog ?? [], {
             id: uid(),
             ml,
-            at: new Date().toISOString(),
+            at,
+            createdAt: at,
+            deviceId: s.deviceId,
           });
           const waterMl = totalWater(waterLog);
           const goal = goalById(s.goal).waterMl;
@@ -592,7 +608,8 @@ export function PactProvider({ children }: { children: ReactNode }) {
       },
       addMeal: (meal) => {
         update((s) => {
-          const meals = [{ ...meal, id: uid(), at: new Date().toISOString() }, ...s.meals];
+          const at = new Date().toISOString();
+          const meals = [{ ...meal, id: uid(), at, createdAt: at, deviceId: s.deviceId }, ...s.meals];
           const tot = mealTotals(meals);
           const g = goalById(s.goal);
           return { ...s, meals, checkins: { ...s.checkins, fuel: tot.protein >= g.protein } };
@@ -740,16 +757,18 @@ export function PactProvider({ children }: { children: ReactNode }) {
         flash("Order placed · driver assigned");
         return order;
       },
-      sendMessage: (threadId, text, kind = "text", photo) =>
+      sendMessage: (threadId, text, kind = "text", photo) => {
+        const id = uid();
         update((s) => {
           const msg: ChatMessage = {
-            id: uid(),
+            id,
             threadId,
             from: "me",
             kind,
             text,
             photo,
             at: new Date().toISOString(),
+            status: "pending",
           };
           return {
             ...s,
@@ -758,7 +777,22 @@ export function PactProvider({ children }: { children: ReactNode }) {
               [threadId]: [...(s.messages[threadId] ?? []), msg],
             },
           };
-        }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("pact-message", { detail: { threadId, id, text } }));
+        }
+        return id;
+      },
+      markMessage: (threadId, messageId, status) =>
+        update((s) => ({
+          ...s,
+          messages: {
+            ...s.messages,
+            [threadId]: (s.messages[threadId] ?? []).map((message) =>
+              message.id === messageId ? { ...message, status } : message,
+            ),
+          },
+        })),
       appendCoach: (messages) =>
         update((s) => ({
           ...s,
@@ -768,7 +802,49 @@ export function PactProvider({ children }: { children: ReactNode }) {
         update((s) => ({ ...s, coachMessages: [] }));
         flash("Coach thread cleared");
       },
+      blockPerson: (id) => {
+        update((s) => ({ ...s, blocked: s.blocked.includes(id) ? s.blocked : [...s.blocked, id] }));
+        flash("Blocked. Their messages stay hidden and nudges are off.");
+      },
+      reportMessage: (threadId, messageId, reason, text) => {
+        const clean = reason.trim().slice(0, 280);
+        const msg = (state.messages[threadId] ?? []).find((row) => row.id === messageId);
+        const shared = (text ?? msg?.text ?? "").trim();
+        if (!clean || !shared) return false;
+        const report: PactReport = {
+          id: uid(),
+          threadId,
+          messageId,
+          text: shared.slice(0, 2000),
+          reason: clean,
+          at: new Date().toISOString(),
+        };
+        update((s) => ({ ...s, reports: [...(s.reports ?? []), report] }));
+        flash("Report saved with that one message");
+        return true;
+      },
       nudge: (friendId) => {
+        if (state.blocked.includes(friendId)) {
+          flash("Nudges are off for someone you blocked");
+          return;
+        }
+        const now = Date.now();
+        const offsetMin = -new Date(now).getTimezoneOffset();
+        const epoch = localEpoch(now, offsetMin);
+        const sentToday = (state.messages[friendId] ?? []).filter((message) => {
+          if (message.kind !== "nudge" || message.from !== "me") return false;
+          const at = Date.parse(message.at);
+          return Number.isFinite(at) && localEpoch(at, offsetMin) === epoch;
+        }).length;
+        const decision = nudgeDecision({ sentToday, hour: localHour(now, offsetMin) });
+        if (decision === "quiet") {
+          flash("Quiet hours. Nudges start again at 07:00.");
+          return;
+        }
+        if (decision === "cap") {
+          flash("3 nudges is the cap for this partner today.");
+          return;
+        }
         const friend = FRIENDS.find((f) => f.id === friendId);
         update((s) => {
           const msg: ChatMessage = {
@@ -787,6 +863,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
             },
           };
         });
+        if (typeof window !== "undefined") window.dispatchEvent(new Event("pact-nudge"));
         flash(`Nudge sent to ${friend?.name ?? "friend"}`);
       },
       toggleLike: (postId) =>
@@ -1122,7 +1199,8 @@ function uid() {
 }
 
 function applyWorkoutLog(s: PactState, entry: Omit<WorkoutLog, "id" | "at">): PactState {
-  const log: WorkoutLog = { ...entry, id: uid(), at: new Date().toISOString() };
+  const at = new Date().toISOString();
+  const log: WorkoutLog = { ...entry, id: uid(), at, createdAt: at, deviceId: s.deviceId };
   let groups = s.groups;
   if (entry.groupId) {
     groups = s.groups.map((g) => {

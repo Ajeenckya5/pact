@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { localDateKey, streakEnding } from "./streak";
+import { localDateKey, pactDateKey, streakEnding } from "./streak";
 
 describe("streaks", () => {
   it("keeps a New York streak across the spring-forward Sunday", () => {
@@ -14,5 +14,13 @@ describe("streaks", () => {
 
   it("breaks when a day is missing", () => {
     assert.equal(streakEnding(["2026-09-20", "2026-09-22"], "2026-09-22"), 1);
+  });
+
+  it("counts a 2am log on the previous pact day", () => {
+    const zone = "UTC";
+    const early = new Date("2026-09-23T02:00:00.000Z");
+    const after = new Date("2026-09-23T04:00:00.000Z");
+    assert.equal(pactDateKey(early, zone), "2026-09-22");
+    assert.equal(pactDateKey(after, zone), "2026-09-23");
   });
 });

@@ -4,6 +4,7 @@ import { JumpPalette } from "@/components/JumpPalette";
 import { PwaRegister } from "@/components/PwaRegister";
 import { Onboard } from "@/components/Onboard";
 import { ToastHost } from "@/components/Providers";
+import { hasPactData } from "@/lib/score-ready";
 import { pactScore, usePact } from "@/lib/store";
 import { useLiveBody } from "@/lib/wearable-live-context";
 import { cn } from "@/lib/cn";
@@ -12,24 +13,39 @@ import {
   Bot,
   Droplets,
   Dumbbell,
-  HelpCircle,
   LayoutGrid,
   MapPin,
   Menu,
-  MessageCircle,
-  Moon,
   Navigation,
   Shield,
   ChefHat,
   ShoppingBag,
-  Utensils,
   Users,
-  Watch,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+
+const LIVE_WEB = process.env.NEXT_PUBLIC_PACT_WEB || "https://pact-aj.pages.dev";
+
+function PagesHome() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hostname is only known in the browser
+    setShow(window.location.hostname === "ajeenckya5.github.io");
+  }, []);
+  if (!show) return null;
+  return (
+    <p className="border-b border-line bg-acid/10 px-4 py-2 text-center text-sm text-cream">
+      The live app is at{" "}
+      <a className="text-acid underline underline-offset-2" href={LIVE_WEB}>
+        {LIVE_WEB.replace("https://", "")}
+      </a>
+      .
+    </p>
+  );
+}
 
 const NAV = [
   { href: "/", label: "Today", icon: LayoutGrid, group: "Pact" },
@@ -38,19 +54,11 @@ const NAV = [
   { href: "/people", label: "People", icon: Users, group: "Pact" },
   { href: "/you", label: "You", icon: Shield, group: "Pact" },
   { href: "/live", label: "Track", icon: Navigation, group: "More" },
-  { href: "/sleep", label: "Sleep", icon: Moon, group: "More" },
-  { href: "/calories", label: "Food", icon: Utensils, group: "More" },
-  { href: "/water", label: "Water", icon: Droplets, group: "More" },
   { href: "/coach", label: "Coach", icon: Bot, group: "More" },
   { href: "/fuel", label: "Market", icon: ShoppingBag, group: "More" },
   { href: "/recipes", label: "Recipes", icon: ChefHat, group: "More" },
   { href: "/map", label: "Places", icon: MapPin, group: "More" },
   { href: "/strava", label: "Strava", icon: Activity, group: "More" },
-  { href: "/wearables", label: "Devices", icon: Watch, group: "More" },
-  { href: "/friends", label: "Friends", icon: Users, group: "More" },
-  { href: "/chat", label: "Chat", icon: MessageCircle, group: "More" },
-  { href: "/privacy", label: "Privacy", icon: Shield, group: "More" },
-  { href: "/faq", label: "FAQ", icon: HelpCircle, group: "More" },
 ];
 
 const MOBILE = [
@@ -66,6 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const store = usePact();
   const { body } = useLiveBody();
   const [open, setOpen] = useState(false);
+  const scored = hasPactData(store);
   const score = pactScore({ ...store, recovery: body.recovery, sleepScore: body.sleepScore });
   const unread = Object.values(store.messages).reduce(
     (n, thread) => n + thread.filter((m) => m.from !== "me").length,
@@ -95,7 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             @{store.profile.handle || "you"} · {store.streak} day streak
             {store.demo ? " · sample" : ""}
           </p>
-          <p className="mt-2 font-mono text-sm text-acid">Pact score {score}</p>
+          <p className="mt-2 font-mono text-sm text-acid">{scored ? `Pact score ${score}` : "No score yet"}</p>
         </div>
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-8">
           {groups(NAV).map(([group, items]) => (
@@ -165,6 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        <PagesHome />
         {store.demo ? (
           <p className="bg-[repeating-linear-gradient(135deg,rgba(214,255,63,0.22)_0_10px,transparent_10px_20px)] px-4 py-2 text-center text-xs font-semibold tracking-wide text-acid">
             Sample data

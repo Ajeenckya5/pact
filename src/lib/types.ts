@@ -11,6 +11,7 @@ export type Prefs = {
   onboarded: boolean;
   reducedMotion: boolean;
   theme: "dark" | "light";
+  seenReceipts?: boolean;
 };
 
 export type PlaceKind = "gym" | "grocery";
@@ -92,6 +93,8 @@ export type WorkoutLog = {
   minutes: number;
   kcal: number;
   at: string;
+  createdAt?: string;
+  deviceId?: string;
   source: WorkoutSource;
   workoutId?: string;
   groupId?: string;
@@ -214,6 +217,8 @@ export type MealLog = {
   carbs: number;
   fat: number;
   at: string;
+  createdAt?: string;
+  deviceId?: string;
   source: "ai" | "manual" | "recipe" | "demo";
   photo?: string;
 };
@@ -229,6 +234,15 @@ export type CustomFood = {
   createdAt: string;
 };
 
+export type PactReport = {
+  id: string;
+  threadId: string;
+  messageId: string;
+  text: string;
+  reason: string;
+  at: string;
+};
+
 export type ChatMessage = {
   id: string;
   threadId: string;
@@ -237,6 +251,7 @@ export type ChatMessage = {
   text: string;
   photo?: string;
   at: string;
+  status?: "pending" | "delivered" | "seen" | "failed";
 };
 
 export type CoachMessage = {

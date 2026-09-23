@@ -1,6 +1,29 @@
 name = "pact-api"
 main = "src/worker.ts"
 compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# PactRoom holds the ordered log. KV holds flags. D1 holds push subscriptions only.
+
+[[durable_objects.bindings]]
+name = "PACT_ROOM"
+class_name = "PactRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PactRoom"]
+
+[[kv_namespaces]]
+binding = "PACT_CONFIG"
+id = "2edeca91052248fe96fddb527e18ce97"
+
+[[d1_databases]]
+binding = "PACT_DB"
+database_name = "pact"
+database_id = "d6360d71-db6b-4e62-a923-1e9b7ba0c18b"
+migrations_dir = "migrations"
 
 [vars]
-# Free-plan Worker. Ciphertext only. Deploy after the Cloudflare account exists.
+VAPID_SUBJECT = "mailto:pact@users.noreply.github.com"
+VAPID_PUBLIC = "BGe9HJeDuZ6dNaejhT4Q-VhFXL-UBT0AoZqxwbda0aWAoZqqBMb_Dvw1A1n5D-cwZfPy16ieLDSrdg9uD1TsMT4"

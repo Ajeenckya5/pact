@@ -2,6 +2,8 @@ export type WaterSip = {
   id: string;
   ml: number;
   at: string;
+  createdAt?: string;
+  deviceId?: string;
   source?: "demo" | "log";
 };
 

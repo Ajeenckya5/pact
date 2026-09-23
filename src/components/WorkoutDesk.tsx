@@ -67,6 +67,14 @@ export function WorkoutDesk() {
           and a log button. Scan a rack or a machine with CLIP and it opens the matching film.
         </p>
       </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/coach">
+          Coach
+        </Link>
+        <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/live">
+          Track
+        </Link>
+      </div>
       <div className="flex flex-wrap gap-2">
         <ClipScanButton
           label="Scan a lift"

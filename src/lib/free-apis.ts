@@ -1,8 +1,5 @@
-import {
-  mealRecordToKitchen,
-  pactRecipesToKitchen,
-  type KitchenRecipe,
-} from "./kitchen";
+import { curatedPlates } from "./curated-plates";
+import type { KitchenRecipe } from "./kitchen";
 import { fetchJson } from "./http";
 import { muscleFromWger, type MuscleId } from "./muscles";
 
@@ -56,7 +53,7 @@ export type LiveRecipe = {
   steps: string[];
   photo: string;
   youtubeId?: string;
-  source: "themealdb";
+  source: "pact";
 };
 
 export type LiveExercise = {
@@ -317,99 +314,44 @@ export async function fetchFoods(q: string): Promise<LiveFood[]> {
     .slice(0, 10);
 }
 
-export async function fetchRecipes(ingredient: string): Promise<LiveRecipe[]> {
-  const filter = (await getJson(
-    `https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(ingredient)}`,
-  )) as { meals?: Array<{ idMeal: string }> | null };
-  const ids = (filter.meals ?? []).slice(0, 6).map((m) => m.idMeal);
-  const detailed = await Promise.all(
-    ids.map(async (id): Promise<LiveRecipe | null> => {
-      const lookup = (await getJson(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`)) as {
-        meals?: Array<Record<string, string | null>> | null;
-      };
-      const meal = lookup.meals?.[0];
-      if (!meal) return null;
-      const kitchen = mealRecordToKitchen(meal);
-      const ingredients: string[] = [];
-      for (let i = 1; i <= 20; i++) {
-        const ing = meal[`strIngredient${i}`]?.trim();
-        if (ing) ingredients.push(ing.toLowerCase());
-      }
-      const youtube = meal.strYoutube ?? "";
-      const yt = youtube.match(/v=([\w-]+)/)?.[1];
-      const steps = (meal.strInstructions ?? "")
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 8)
-        .slice(0, 8);
-      return {
-        id: `mealdb-${meal.idMeal}`,
-        name: meal.strMeal ?? "Recipe",
-        minutes: 30,
-        kcal: kitchen?.kcal ?? 0,
-        protein: kitchen?.protein ?? 0,
-        ingredients,
-        steps: steps.length ? steps : ["See source on TheMealDB."],
-        photo: meal.strMealThumb ?? "",
-        youtubeId: yt,
-        source: "themealdb",
-      };
-    }),
-  );
-  return detailed.filter((x): x is LiveRecipe => x != null);
+function plates() {
+  return curatedPlates();
 }
 
-const LETTERS = "abcdefghijklmnopqrstuvwxyz".split("");
-let catalogCache: { at: number; recipes: KitchenRecipe[]; ver: number } | null = null;
-const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
-const CATALOG_VER = 2;
+function matchesPlate(recipe: KitchenRecipe, needle: string) {
+  const n = needle.toLowerCase();
+  return (
+    recipe.name.toLowerCase().includes(n) ||
+    recipe.lines.some((line) => line.name.toLowerCase().includes(n))
+  );
+}
+
+export async function fetchRecipes(ingredient: string): Promise<LiveRecipe[]> {
+  const needle = ingredient.trim().toLowerCase();
+  return plates()
+    .filter((recipe) => !needle || matchesPlate(recipe, needle))
+    .slice(0, 12)
+    .map((recipe) => ({
+      id: recipe.id,
+      name: recipe.name,
+      minutes: 25,
+      kcal: recipe.kcal,
+      protein: recipe.protein,
+      ingredients: recipe.lines.map((line) => line.name.toLowerCase()),
+      steps: recipe.steps,
+      photo: recipe.photo,
+      source: "pact" as const,
+    }));
+}
 
 export async function fetchRecipeCatalog(): Promise<{ recipes: KitchenRecipe[]; live: number; cached: boolean }> {
-  if (catalogCache && catalogCache.ver === CATALOG_VER && Date.now() - catalogCache.at < CATALOG_TTL_MS) {
-    return { recipes: catalogCache.recipes, live: catalogCache.recipes.filter((r) => r.source === "themealdb").length, cached: true };
-  }
-
-  const recipes = pactRecipesToKitchen();
-  const seen = new Set(recipes.map((r) => r.id));
-
-  for (let i = 0; i < LETTERS.length; i += 8) {
-    const chunk = LETTERS.slice(i, i + 8);
-    const parts = await Promise.all(
-      chunk.map(async (letter) => {
-        try {
-          const data = (await getJson(`https://www.themealdb.com/api/json/v1/1/search.php?f=${letter}`)) as {
-            meals?: Array<Record<string, string | null>> | null;
-          };
-          return (data.meals ?? [])
-            .map((m) => mealRecordToKitchen(m))
-            .filter((r): r is KitchenRecipe => Boolean(r));
-        } catch {
-          return [] as KitchenRecipe[];
-        }
-      }),
-    );
-    for (const recipe of parts.flat()) {
-      if (seen.has(recipe.id)) continue;
-      seen.add(recipe.id);
-      recipes.push(recipe);
-    }
-  }
-
-  catalogCache = { at: Date.now(), recipes, ver: CATALOG_VER };
-  return {
-    recipes,
-    live: recipes.filter((r) => r.source === "themealdb").length,
-    cached: false,
-  };
+  return { recipes: plates(), live: 0, cached: true };
 }
 
 export async function fetchRecipesSearch(q: string): Promise<KitchenRecipe[]> {
-  const data = (await getJson(
-    `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(q)}`,
-  )) as { meals?: Array<Record<string, string | null>> | null };
-  return (data.meals ?? [])
-    .map((m) => mealRecordToKitchen(m))
-    .filter((r): r is KitchenRecipe => Boolean(r));
+  const needle = q.trim().toLowerCase();
+  if (!needle) return plates();
+  return plates().filter((recipe) => matchesPlate(recipe, needle));
 }
 
 export async function fetchExercises(q?: string, id?: string): Promise<LiveExercise[]> {

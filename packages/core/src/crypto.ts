@@ -4,7 +4,6 @@
  */
 
 const SEAL_INFO = new TextEncoder().encode("pact-seal-v1");
-const MESSAGE_INFO = new TextEncoder().encode("pact-message-v1");
 
 export type DeviceKeys = {
   x25519: CryptoKeyPair;
@@ -107,37 +106,6 @@ export async function inviteProof(inviteSecret: string, pactId: string) {
   );
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(pactId)));
   return bytesToB64(sig);
-}
-
-async function messageKey(inviteSecret: string) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(inviteSecret), "HKDF", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(), info: MESSAGE_INFO },
-    base,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-}
-
-/** Both people who hold the invite secret can read this. The server only sees the box. */
-export async function sealMessage(inviteSecret: string, plaintext: string) {
-  const aes = await messageKey(inviteSecret);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const cipher = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aes, new TextEncoder().encode(plaintext) as BufferSource),
-  );
-  const packed = new Uint8Array(iv.length + cipher.length);
-  packed.set(iv, 0);
-  packed.set(cipher, iv.length);
-  return bytesToB64(packed);
-}
-
-export async function openMessage(inviteSecret: string, box: string) {
-  const aes = await messageKey(inviteSecret);
-  const packed = b64ToBytes(box);
-  const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: packed.slice(0, 12) }, aes, packed.slice(12));
-  return new TextDecoder().decode(clear);
 }
 
 export async function randomSecret() {

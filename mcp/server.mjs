@@ -109,44 +109,20 @@ server.registerTool(
   {
     title: "Pact recipes",
     description:
-      "Recipes from TheMealDB. Search by name (q), filter by ingredient, or dump a letter A–Z (full meals with measures). No API key.",
+      "Pact plates are bundled in the app from the pantry. This tool does not call an outside recipe API.",
     inputSchema: {
       q: z.string().optional(),
       ingredient: z.string().optional(),
       letter: z.string().max(1).optional(),
     },
   },
-  async ({ q, ingredient, letter }) => {
-    if (letter && /[a-z]/i.test(letter)) {
-      const data = await getJson(`https://www.themealdb.com/api/json/v1/1/search.php?f=${letter.toLowerCase()}`);
-      const meals = (data.meals ?? []).map((m) => ({
-        id: m.idMeal,
-        name: m.strMeal,
-        category: m.strCategory,
-        area: m.strArea,
-        ingredients: Array.from({ length: 20 }, (_, i) => ({
-          name: m[`strIngredient${i + 1}`],
-          measure: m[`strMeasure${i + 1}`],
-        })).filter((x) => x.name),
-      }));
-      return text({ count: meals.length, meals });
-    }
-    if (q) {
-      const data = await getJson(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(q)}`);
-      const meals = (data.meals ?? []).map((m) => ({
-        id: m.idMeal,
-        name: m.strMeal,
-        category: m.strCategory,
-        area: m.strArea,
-        thumb: m.strMealThumb,
-      }));
-      return text({ count: meals.length, meals });
-    }
-    const needle = ingredient || "chicken";
-    const data = await getJson(
-      `https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(needle)}`,
-    );
-    return text({ meals: (data.meals ?? []).slice(0, 12) });
+  async ({ q, ingredient }) => {
+    return text({
+      source: "pact",
+      q: q ?? "",
+      ingredient: ingredient ?? "",
+      note: "Open Recipes in Pact. Plates and macros come from the bundled pantry.",
+    });
   },
 );
 

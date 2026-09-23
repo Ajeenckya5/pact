@@ -1,7 +1,9 @@
 "use client";
 
+import { InstallApp } from "@/components/InstallApp";
 import { Button, Card, Eyebrow } from "@/components/ui";
 import { GOALS } from "@/lib/data";
+import { REPORT_CONTACT_URL } from "@/lib/report";
 import { PERMISSIONS } from "@pact/core";
 import { usePact } from "@/lib/store";
 import Link from "next/link";
@@ -46,6 +48,10 @@ export default function YouPage() {
         <Button type="button" tone="ghost" onClick={() => store.setPrefs({ theme: store.prefs.theme === "light" ? "dark" : "light" })}>
           {store.prefs.theme === "light" ? "Use dark theme" : "Use light theme"}
         </Button>
+        <Button type="button" tone="ghost" onClick={() => store.setPrefs({ seenReceipts: store.prefs.seenReceipts === false })}>
+          {store.prefs.seenReceipts === false ? "Seen receipts are off" : "Seen receipts are on"}
+        </Button>
+        <p className="text-sm text-mute">Seen is encrypted. It is sent only while this is on.</p>
         {!store.demo ? (
           <Button type="button" tone="ghost" onClick={() => store.loadSample()}>
             Explore with sample data
@@ -55,6 +61,9 @@ export default function YouPage() {
             Leave sample data
           </Button>
         )}
+      </Card>
+      <Card className="space-y-2 p-6 text-sm text-mute">
+        <InstallApp />
       </Card>
       <Card className="space-y-2 p-6 text-sm text-mute">
         <p className="text-cream">Permissions</p>
@@ -93,6 +102,15 @@ export default function YouPage() {
           Delete my data
         </Button>
       </div>
+      <Card className="space-y-2 p-6">
+        <Eyebrow>About</Eyebrow>
+        <p className="text-sm text-mute">
+          To report a message, open the chat, choose that one message, and add a reason. The report includes only the message you share.
+        </p>
+        <a className="text-sm text-acid underline underline-offset-2" href={REPORT_CONTACT_URL}>
+          Published report contact
+        </a>
+      </Card>
       <div className="grid gap-3 sm:grid-cols-3">
         <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/wearables">
           Devices
@@ -102,6 +120,12 @@ export default function YouPage() {
         </Link>
         <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/faq">
           FAQ
+        </Link>
+        <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/strava">
+          Strava
+        </Link>
+        <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/map">
+          Places
         </Link>
       </div>
     </div>

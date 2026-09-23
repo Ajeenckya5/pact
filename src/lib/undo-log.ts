@@ -1,4 +1,4 @@
-import { localDateKey } from "../../packages/core/src/streak";
+import { pactDateKey } from "../../packages/core/src/streak";
 
 export type UndoEntry =
   | { kind: "water"; id: string; ml: number; createdAt: string }
@@ -31,7 +31,7 @@ export function entriesToday(
   now = new Date(),
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
 ): UndoEntry[] {
-  const today = localDateKey(now, timeZone);
+  const today = pactDateKey(now, timeZone);
   const water = (input.waterLog ?? []).map((sip) => ({
     kind: "water" as const,
     id: sip.id,
@@ -46,6 +46,6 @@ export function entriesToday(
   }));
   return [...water, ...food].filter((entry) => {
     const at = new Date(entry.createdAt);
-    return !Number.isNaN(at.getTime()) && localDateKey(at, timeZone) === today;
+    return !Number.isNaN(at.getTime()) && pactDateKey(at, timeZone) === today;
   });
 }

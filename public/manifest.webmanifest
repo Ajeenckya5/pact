@@ -2,9 +2,11 @@
   "name": "Pact",
   "short_name": "Pact",
   "description": "Four daily boxes with the people you choose: sleep, protein, water, and training.",
+  "id": ".",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
+  "display_override": ["standalone", "browser"],
   "background_color": "#07080a",
   "theme_color": "#07080a",
   "icons": [

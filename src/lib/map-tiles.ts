@@ -1,8 +1,12 @@
 /** Keyless raster basemaps. CARTO dark tiles now watermark “API key required”. */
 
+/** OpenFreeMap liberty style for MapLibre. Raster fallback stays attributed. */
+export const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+
 export const OSM_RASTER = {
   url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://openfreemap.org">OpenFreeMap</a>',
 };
 
 export const OSM_DE_RASTER = {

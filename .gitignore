@@ -34,6 +34,15 @@ android/app/src/main/assets/public
 # misc
 .DS_Store
 *.pem
+*.jks
+*.keystore
+workers/api/.wrangler/
+workers/api/.dev.vars
+apps/mobile/node_modules/
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/release-signing.properties
 
 # debug
 npm-debug.log*

@@ -4,7 +4,7 @@ const config: ExpoConfig = {
   name: "Pact",
   slug: "pact",
   scheme: "pact",
-  version: "0.1.0",
+  version: "1.0.0",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
   ios: {
@@ -21,6 +21,8 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.ajeenckya.pact",
+    versionCode: 1,
+    minSdkVersion: 26,
     permissions: [
       "android.permission.BLUETOOTH_SCAN",
       "android.permission.BLUETOOTH_CONNECT",

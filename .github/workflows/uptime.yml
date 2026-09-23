@@ -1,0 +1,13 @@
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Site answers
+        run: curl --fail --silent --show-error --output /dev/null https://ajeenckya5.github.io/pact/

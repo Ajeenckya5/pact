@@ -1,0 +1,9 @@
+#!/bin/sh
+# Drop Co-authored-by trailers before the commit is written.
+msg_file=$1
+[ -f "$msg_file" ] || exit 0
+tmp="${msg_file}.strip"
+grep -viE '^[[:space:]]*Co-authored-by:' "$msg_file" > "$tmp" || true
+sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}' "$tmp" > "$msg_file"
+rm -f "$tmp"
+exit 0

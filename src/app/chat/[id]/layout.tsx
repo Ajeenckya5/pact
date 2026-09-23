@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+export function generateStaticParams() {
+  return ["maya", "jordan", "sam", "riley", "chris"].map((id) => ({ id }));
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const name = id.slice(0, 1).toUpperCase() + id.slice(1);

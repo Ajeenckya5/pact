@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { findWorkout } from "@/lib/catalog";
+import { LIBRARY, findWorkout } from "@/lib/catalog";
+
+export function generateStaticParams() {
+  return LIBRARY.map((workout) => ({ id: workout.id }));
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

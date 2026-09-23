@@ -21,12 +21,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const assetBase = process.env.PACT_BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export const metadata: Metadata = {
   title: { default: "Today", template: "%s · Pact" },
   description: "Four daily boxes with the people you choose: sleep, protein, water, and training.",
   applicationName: "Pact",
-  manifest: "/manifest.webmanifest",
-  icons: { icon: "/icons/icon-192.png", apple: "/icons/icon-180.png" },
+  manifest: `${assetBase}/manifest.webmanifest`,
+  icons: { icon: `${assetBase}/icons/icon-192.png`, apple: `${assetBase}/icons/icon-180.png` },
   appleWebApp: { capable: true, title: "Pact" },
 };
 

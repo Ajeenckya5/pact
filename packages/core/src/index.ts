@@ -4,7 +4,9 @@ export {
   createDeviceKeys,
   inviteFragment,
   inviteProof,
+  openMessage,
   openSeal,
+  sealMessage,
   parseInviteFragment,
   publicKeyHex,
   randomSecret,
@@ -14,6 +16,8 @@ export {
 } from "./crypto";
 export { NOTIFICATIONS, QUIET_HOURS } from "./notifications";
 export { PERMISSIONS } from "./permissions";
+export { foodFromOffPayload, portionOf, type OffFood } from "./food";
+export { parseHeartRate } from "./ble";
 
 export type EntityBase = {
   id: string;

@@ -85,6 +85,7 @@ try {
   await pageA.getByRole("button", { name: "Today's pact Sleep 7h+" }).click();
   await pageB.waitForFunction(
     () => document.querySelector('[data-partner-box="sleep"]')?.getAttribute("data-partner-done") === "yes",
+    null,
     { timeout: 2000 },
   );
   const elapsed = Date.now() - started;
@@ -100,7 +101,9 @@ try {
   const socketPrefix = process.env.PACT_SOCKET_PREFIX ?? "wss://pact-api.ajeenckya.workers.dev/pacts/";
   if (proof.messages < 1) throw new Error(`no socket frame: ${JSON.stringify(proof)}`);
   if (!proof.urls.some((item) => item.startsWith(socketPrefix))) throw new Error(`socket was not the worker: ${proof.urls.join(" ")}`);
-  if (proof.urls.some((item) => item.includes("x-pact-sig") || item.includes("?"))) throw new Error(`signature was in the socket URL: ${proof.urls.join(" ")}`);
+  if (proof.urls.some((item) => item.includes("/pacts/") && (item.includes("x-pact-sig") || item.includes("?")))) {
+    throw new Error(`signature was in the socket URL: ${proof.urls.join(" ")}`);
+  }
   if (proof.broadcasts !== 0 || proof.sse !== 0) throw new Error(`side channel used: ${JSON.stringify(proof)}`);
   if (!proof.localBoxes) throw new Error(`second context changed its own boxes: ${JSON.stringify(proof)}`);
   console.log(

@@ -21,7 +21,7 @@ export class PactRoom extends DurableObject<Env> {
       const state: Attachment = { ...beginSocket(Date.now()), pactId };
       this.ctx.acceptWebSocket(server);
       server.serializeAttachment(state);
-      server.send(JSON.stringify({ nonce: state.nonce }));
+      server.send(JSON.stringify({ type: "challenge", nonce: state.nonce }));
       setTimeout(() => {
         const current = server.deserializeAttachment() as Attachment | null;
         if (!current?.authed) {

@@ -138,7 +138,7 @@ export function PactLive({ children }: { children: ReactNode }) {
           } catch {
             return;
           }
-          if (parsed.nonce && ws) {
+          if (parsed.type === "challenge" && parsed.nonce && ws) {
             const sig = await signBytes(keys.sk, socketCanon(parsed.nonce, pactId, keys.pk));
             ws.send(JSON.stringify({ pk: keys.pk, sig }));
             ws.send(JSON.stringify({ type: "hello", pk: keys.pk, x25519: keys.boxPk }));

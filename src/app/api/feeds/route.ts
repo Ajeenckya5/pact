@@ -2,7 +2,7 @@ import { jsonOk } from "@/app/api/_util";
 
 const FEEDS = [
   { id: "open-meteo", name: "Open-Meteo", use: "Weather, UV, sunrise, air quality", url: "https://api.open-meteo.com", key: false },
-  { id: "overpass", name: "OpenStreetMap Overpass", use: "Gyms and grocery stores", url: "https://overpass-api.de", key: false },
+  { id: "overpass", name: "OpenStreetMap Overpass", use: "Gyms near you", url: "https://overpass-api.de", key: false },
   { id: "off", name: "Open Food Facts", use: "Calorie search", url: "https://world.openfoodfacts.org", key: false },
   { id: "mealdb", name: "TheMealDB", use: "Recipes from ingredients", url: "https://www.themealdb.com", key: false },
   { id: "wger", name: "wger", use: "Exercise directory", url: "https://wger.de/api/v2", key: false },
@@ -19,7 +19,7 @@ export async function GET() {
           feed.id === "open-meteo"
             ? "https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m"
             : feed.id === "off"
-              ? "https://search.openfoodfacts.org/search?q=oats&page_size=1"
+              ? "https://world.openfoodfacts.org/api/v2/search?search_terms=oats&page_size=1"
               : feed.id === "mealdb"
                 ? "https://www.themealdb.com/api/json/v1/1/search.php?s=chicken"
                 : feed.id === "wger"

@@ -63,7 +63,7 @@ const FEED_PROBES = [
   {
     id: "overpass",
     name: "OpenStreetMap Overpass",
-    use: "Gyms and grocery stores",
+    use: "Gyms near you",
     url: "https://overpass-api.de",
     key: false,
     probe: "https://overpass-api.de/api/status",
@@ -74,7 +74,7 @@ const FEED_PROBES = [
     use: "Calorie search",
     url: "https://world.openfoodfacts.org",
     key: false,
-    probe: "https://search.openfoodfacts.org/search?q=oats&page_size=1",
+    probe: "https://world.openfoodfacts.org/api/v2/search?search_terms=oats&page_size=1",
   },
   {
     id: "mealdb",

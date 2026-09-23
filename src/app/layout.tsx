@@ -22,9 +22,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pact — accountability, recovered",
-  description:
-    "Wearable-agnostic recovery, AI calories, workouts, friends, maps, groceries, and privacy — a fuller pact than a strain score.",
+  title: { default: "Today", template: "%s · Pact" },
+  description: "Four daily boxes with the people you choose: sleep, protein, water, and training.",
+  applicationName: "Pact",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/icon-180.png" },
+  appleWebApp: { capable: true, title: "Pact" },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

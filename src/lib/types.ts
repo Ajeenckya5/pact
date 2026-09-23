@@ -10,6 +10,7 @@ export type Prefs = {
   units: Units;
   onboarded: boolean;
   reducedMotion: boolean;
+  theme: "dark" | "light";
 };
 
 export type PlaceKind = "gym" | "grocery";

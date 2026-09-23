@@ -48,7 +48,32 @@ export function foodNetLabels() {
   return labels ?? foodCandidateLabels();
 }
 
+export const CLIP_DOWNLOAD_MB = 150;
+
+type NetworkInfo = { effectiveType?: string; saveData?: boolean };
+
+export function clipNeedsConsent() {
+  if (typeof navigator === "undefined") return false;
+  const connection = (navigator as Navigator & { connection?: NetworkInfo }).connection;
+  if (!connection) return false;
+  if (connection.saveData) return true;
+  return connection.effectiveType !== "wifi" && connection.effectiveType != null;
+}
+
+export function clipAllowed() {
+  try {
+    return localStorage.getItem("pact.clip.ok") === "yes";
+  } catch {
+    return false;
+  }
+}
+
+export function allowClipDownload() {
+  localStorage.setItem("pact.clip.ok", "yes");
+}
+
 export async function preloadFoodNet() {
+  if (!clipAllowed()) throw new Error("CLIP download needs a yes on this connection");
   await getClassifier();
 }
 

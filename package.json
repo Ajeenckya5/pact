@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/*.test.ts",
+    "test": "tsx --test src/lib/*.test.ts packages/engine/src/*.test.ts packages/core/src/*.test.ts workers/api/src/*.test.ts",
     "mcp": "node mcp/server.mjs",
     "export": "node scripts/static-export.mjs",
     "build:pages": "PACT_BASE_PATH=/pact node scripts/static-export.mjs",

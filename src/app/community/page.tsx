@@ -30,6 +30,7 @@ export default function CommunityPage() {
 
       <Card className="p-4">
         <Field
+          label="Post"
           placeholder="Share a session, a plate, a question…"
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -101,6 +102,7 @@ export default function CommunityPage() {
             ))}
             <div className="flex gap-2">
               <Field
+                label="Comment"
                 placeholder="Comment"
                 value={comment[p.id] ?? ""}
                 onChange={(e) => setComment((s) => ({ ...s, [p.id]: e.target.value }))}

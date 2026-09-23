@@ -27,7 +27,8 @@ export default function FaqPage() {
       </div>
 
       <Field
-        placeholder="Search FAQ — scan, privacy, library…"
+        label="Search FAQ"
+        placeholder="Scan, privacy, library…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />

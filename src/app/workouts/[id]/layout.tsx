@@ -1,12 +1,14 @@
-import { LIBRARY } from "@/lib/catalog";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { findWorkout } from "@/lib/catalog";
 
-export function generateStaticParams() {
-  return LIBRARY.map((w) => ({ id: w.id }));
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const workout = findWorkout(id);
+  const name = workout?.title ?? "Workout";
+  return { title: name, description: `${name} in the Pact training library.` };
 }
 
-export const dynamicParams = false;
-
-export default function Layout({ children }: { children: ReactNode }) {
+export default function WorkoutLayout({ children }: { children: ReactNode }) {
   return children;
 }

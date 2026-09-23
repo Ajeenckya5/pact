@@ -3,6 +3,7 @@ import {
   pactRecipesToKitchen,
   type KitchenRecipe,
 } from "./kitchen";
+import { fetchJson } from "./http";
 import { muscleFromWger, type MuscleId } from "./muscles";
 
 const UA = "PactAccountability/1.0 (local fitness app; OSM/OFF/Open-Meteo)";
@@ -80,7 +81,7 @@ export type GeoHit = {
 
 async function getJson(url: string, init?: RequestInit) {
   const browser = typeof window !== "undefined";
-  const res = await fetch(url, {
+  return fetchJson(url, {
     ...init,
     cache: "no-store",
     headers: {
@@ -88,21 +89,8 @@ async function getJson(url: string, init?: RequestInit) {
       ...(browser ? {} : { "User-Agent": UA }),
       ...(init?.headers ?? {}),
     },
-    signal: init?.signal ?? AbortSignal.timeout(24_000),
+    timeoutMs: 24_000,
   });
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
-  const text = await res.text();
-  const type = res.headers.get("content-type") ?? "";
-  const trimmed = text.trim();
-  const looksJson = trimmed.startsWith("{") || trimmed.startsWith("[");
-  if (!type.includes("json") && !looksJson) {
-    throw new Error(`not json ${res.status} ${url}`);
-  }
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    throw new Error(`invalid json ${url}`);
-  }
 }
 
 export function weatherLabel(code: number) {
@@ -181,19 +169,14 @@ export function fetchPlaces(lat: number, lng: number, kind: "all" | "gym" | "gro
 }
 
 async function loadPlaces(lat: number, lng: number, kind: "all" | "gym" | "grocery"): Promise<LivePlace[]> {
+  if (kind === "grocery") return [];
   const r = 6000;
   const gym =
     `nwr["leisure"="fitness_centre"](around:${r},${lat},${lng});` +
     `nwr["leisure"="sports_centre"](around:${r},${lat},${lng});` +
     `nwr["leisure"="fitness_station"](around:${r},${lat},${lng});` +
     `nwr["amenity"="gym"](around:${r},${lat},${lng});`;
-  const grocery =
-    `nwr["shop"="supermarket"](around:${r},${lat},${lng});` +
-    `nwr["shop"="grocery"](around:${r},${lat},${lng});` +
-    `nwr["shop"="greengrocer"](around:${r},${lat},${lng});` +
-    `nwr["shop"="organic"](around:${r},${lat},${lng});` +
-    `nwr["shop"="convenience"](around:${r},${lat},${lng});`;
-  const inner = kind === "gym" ? gym : kind === "grocery" ? grocery : gym + grocery;
+  const inner = gym;
   const query = `[out:json][timeout:22];(${inner});out center 48;`;
 
   const endpoints = [

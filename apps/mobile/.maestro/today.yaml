@@ -1,0 +1,5 @@
+appId: com.ajeenckya.pact
+---
+- launchApp
+- assertVisible: "Today"
+- assertVisible: "No wearable connected"

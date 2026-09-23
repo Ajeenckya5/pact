@@ -15,13 +15,13 @@ import {
   INGREDIENTS,
   RECIPES,
   SEED_POSTS,
-  USER,
   goalById,
 } from "./data";
 import { combinePactScore } from "./algos";
 import { rankPlate } from "./plate-vision";
 import { mealSlice, matchIngredient, type DietId, type MealTargets } from "./kitchen";
 import { tap } from "./experience";
+import { askPersistentStorage, clearAccount, readAccount, writeAccount } from "./persist";
 import { pushSip, totalWater, undoLatestSip, type WaterSip } from "./water-log";
 import { emptyScore, friendFromContact, mergeContacts, seedScore } from "./training";
 import { migrateConnectedWearables } from "./wearable-live";
@@ -257,7 +257,7 @@ const initial: PactState = {
   rhr: 51,
   steps: 9640,
   history: seedHistory(),
-  prefs: { units: "metric", onboarded: false, reducedMotion: false },
+  prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark" },
   favoriteFoods: ["chicken", "yogurt", "rice"],
   favoriteWorkouts: ["lift-squat", "full-body"],
   schema: 2,
@@ -303,7 +303,7 @@ function blankAccount(): PactState {
     history: [],
     favoriteFoods: [],
     favoriteWorkouts: [],
-    prefs: { units: "metric", onboarded: false, reducedMotion: false },
+    prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark" },
   };
 }
 
@@ -340,6 +340,9 @@ type Store = PactState & {
   addComment: (postId: string, text: string) => void;
   setPrivacy: (patch: Partial<PrivacySettings>) => void;
   setPrefs: (patch: Partial<Prefs>) => void;
+  setProfile: (patch: Partial<PactState["profile"]>) => void;
+  importAccount: (next: Partial<PactState>) => void;
+  eraseAll: () => void;
   toggleFavoriteFood: (id: string) => void;
   toggleFavoriteWorkout: (id: string) => void;
   repeatLastMeal: () => void;
@@ -385,45 +388,49 @@ export function PactProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<PactState>;
-        if (parsed.schema === 2) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect -- external store hydration
+    let alive = true;
+    void (async () => {
+      try {
+        const parsed = (await readAccount()) as Partial<PactState> | null;
+        if (alive && parsed?.schema === 2) {
           setState((s) => {
-          const parsedGoal = parsed.goal ?? s.goal;
-          return {
-            ...s,
-            ...parsed,
-            history: parsed.history?.length ? parsed.history : s.history,
-            diets: Array.isArray(parsed.diets) ? parsed.diets : s.diets,
-            mealTargets: parsed.mealTargets ?? mealSlice(goalById(parsedGoal)),
-            workoutLogs: parsed.workoutLogs ?? s.workoutLogs,
-            customWorkouts: parsed.customWorkouts ?? s.customWorkouts,
-            contacts: parsed.contacts ?? s.contacts,
-            contactsSyncedAt: parsed.contactsSyncedAt ?? s.contactsSyncedAt,
-            groups: parsed.groups ?? s.groups,
-            extraFriends: parsed.extraFriends ?? s.extraFriends,
-            customFoods: parsed.customFoods ?? s.customFoods,
-            coachMessages: parsed.coachMessages ?? s.coachMessages,
-            prefs: { ...s.prefs, ...(parsed.prefs ?? {}) },
-            favoriteFoods: parsed.favoriteFoods ?? s.favoriteFoods,
-            favoriteWorkouts: parsed.favoriteWorkouts ?? s.favoriteWorkouts,
-            connectedWearables: migrateConnectedWearables(parsed.connectedWearables),
-          };
-        });
+            const parsedGoal = parsed.goal ?? s.goal;
+            return {
+              ...s,
+              ...parsed,
+              history: parsed.history?.length ? parsed.history : s.history,
+              diets: Array.isArray(parsed.diets) ? parsed.diets : s.diets,
+              mealTargets: parsed.mealTargets ?? mealSlice(goalById(parsedGoal)),
+              workoutLogs: parsed.workoutLogs ?? s.workoutLogs,
+              customWorkouts: parsed.customWorkouts ?? s.customWorkouts,
+              contacts: parsed.contacts ?? s.contacts,
+              contactsSyncedAt: parsed.contactsSyncedAt ?? s.contactsSyncedAt,
+              groups: parsed.groups ?? s.groups,
+              extraFriends: parsed.extraFriends ?? s.extraFriends,
+              customFoods: parsed.customFoods ?? s.customFoods,
+              coachMessages: parsed.coachMessages ?? s.coachMessages,
+              prefs: { ...s.prefs, ...(parsed.prefs ?? {}) },
+              favoriteFoods: parsed.favoriteFoods ?? s.favoriteFoods,
+              favoriteWorkouts: parsed.favoriteWorkouts ?? s.favoriteWorkouts,
+              connectedWearables: migrateConnectedWearables(parsed.connectedWearables),
+            };
+          });
         }
+      } catch {
+        /* empty account */
       }
-    } catch {
-      /* demo store */
-    }
-    setReady(true);
+      if (!alive) return;
+      setReady(true);
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
     if (!ready) return;
     localStorage.setItem(KEY, JSON.stringify(state));
+    void writeAccount(state);
   }, [state, ready]);
 
   const flash = useCallback((msg: string) => {
@@ -477,6 +484,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
             checkins: { ...s.checkins, water: waterMl >= goal },
           };
         });
+        askPersistentStorage();
         flash(ml > 0 ? `Added ${ml} ml` : `Removed ${Math.abs(ml)} ml`);
       },
       undoWater: () => {
@@ -716,9 +724,9 @@ export function PactProvider({ children }: { children: ReactNode }) {
           posts: [
             {
               id: uid(),
-              authorId: USER.id,
-              author: USER.name,
-              handle: USER.handle,
+              authorId: "me",
+              author: s.profile.name.trim() || "You",
+              handle: s.profile.handle || "you",
               text,
               photo,
               at: new Date().toISOString(),
@@ -738,12 +746,29 @@ export function PactProvider({ children }: { children: ReactNode }) {
           ...s,
           posts: s.posts.map((p) =>
             p.id === postId
-              ? { ...p, comments: [...p.comments, { id: uid(), author: USER.name, text }] }
+              ? { ...p, comments: [...p.comments, { id: uid(), author: s.profile.name.trim() || "You", text }] }
               : p,
           ),
         })),
       setPrivacy: (patch) => update((s) => ({ ...s, privacy: { ...s.privacy, ...patch } })),
       setPrefs: (patch) => update((s) => ({ ...s, prefs: { ...s.prefs, ...patch } })),
+      setProfile: (patch) =>
+        update((s) => ({ ...s, demo: false, profile: { ...s.profile, ...patch } })),
+      importAccount: (next) => {
+        update(() => ({
+          ...blankAccount(),
+          ...next,
+          schema: 2,
+          prefs: { ...blankAccount().prefs, ...(next.prefs ?? {}), onboarded: true },
+          profile: { ...blankAccount().profile, ...(next.profile ?? {}) },
+        }));
+        flash("Import restored this device");
+      },
+      eraseAll: () => {
+        update(() => ({ ...blankAccount(), prefs: { ...blankAccount().prefs, onboarded: true } }));
+        void clearAccount();
+        flash("Everything on this device is erased");
+      },
       toggleFavoriteFood: (id) =>
         update((s) => ({
           ...s,

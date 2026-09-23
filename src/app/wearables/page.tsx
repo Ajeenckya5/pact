@@ -179,12 +179,11 @@ export default function WearablesPage() {
       <Card className="p-6">
         <Eyebrow>What Bluetooth can and cannot do</Eyebrow>
         <p className="mt-3 max-w-3xl text-sm text-mute">
-          The Android APK uses native BLE (Nearby devices + Bluetooth). GitHub Pages and desktop Chrome use Web
-          Bluetooth. Both read the same GATT profiles: heart rate, RR/HRV, cadence, cycling power, running speed,
-          indoor bike (FTMS), battery, temp, SpO2 when the device exposes them. Polar H10, Garmin HRM, Wahoo TICKR,
-          and most smart trainers work. Apple Watch, Oura, HealthKit, Health Connect, and many WHOOP units only talk
-          to their own apps — Pact will not invent those streams. After you pair, open Track to record GPS + the live
-          sample from that one device.
+          Pair a heart-rate strap over Bluetooth. The Android app uses Nearby devices. The website uses Web Bluetooth
+          in Chrome. Both read heart rate, RR intervals, cadence, cycling power, and running speed when the strap
+          exposes them. Polar H10, Garmin HRM, Wahoo TICKR, and most smart trainers work. Apple Watch, Oura, and WHOOP
+          show up in the phone app after they write into Apple Health or Health Connect. Open Track to record GPS with
+          the live sample.
         </p>
       </Card>
     </div>

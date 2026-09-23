@@ -32,7 +32,7 @@ export default function LivePage() {
           </Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight">Live track from the device you paired.</h1>
           <p className="mt-3 max-w-2xl text-mute">
-            GPS from this phone, heart rate / cadence / power from the Bluetooth strap — not from WHOOP or Apple Watch
+            GPS from this phone. Heart rate, cadence, and power come from the Bluetooth strap you pair.
             apps. Allow Location and Nearby devices when Android asks.
           </p>
         </div>

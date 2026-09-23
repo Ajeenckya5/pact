@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import { useId, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 
 export function Card({
   className,
@@ -65,7 +65,7 @@ export function Chip({
     <button
       type="button"
       className={cn(
-        "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+        "min-h-11 rounded-full border px-3 py-1.5 text-xs font-medium transition",
         active
           ? "border-acid bg-acid text-ink"
           : "border-line bg-white/3 text-mute hover:text-cream",
@@ -81,16 +81,28 @@ export function Chip({
 
 export function Field({
   className,
+  label,
+  id,
   ...rest
-}: InputHTMLAttributes<HTMLInputElement>) {
-  return (
+}: InputHTMLAttributes<HTMLInputElement> & { label?: string }) {
+  const autoId = useId();
+  const inputId = id ?? (label ? autoId : undefined);
+  const input = (
     <input
+      id={inputId}
       className={cn(
-        "w-full rounded-2xl border border-line bg-ink px-4 py-3 text-sm text-cream outline-none placeholder:text-mute/70 focus:border-acid/60",
+        "min-h-11 w-full rounded-2xl border border-line bg-ink px-4 py-3 text-sm text-cream outline-none placeholder:text-mute/70 focus:border-acid/60",
         className,
       )}
       {...rest}
     />
+  );
+  if (!label) return input;
+  return (
+    <label className="block text-sm" htmlFor={inputId}>
+      <span className="mb-1 block text-xs text-mute">{label}</span>
+      {input}
+    </label>
   );
 }
 

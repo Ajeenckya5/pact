@@ -97,8 +97,10 @@ try {
     localBoxes: document.body.innerText.includes("0/4 boxes"),
     partner: document.querySelector('[data-partner-box="sleep"]')?.textContent?.replace(/\s+/g, " ").trim() ?? "",
   }));
+  const socketPrefix = process.env.PACT_SOCKET_PREFIX ?? "wss://pact-api.ajeenckya.workers.dev/pacts/";
   if (proof.messages < 1) throw new Error(`no socket frame: ${JSON.stringify(proof)}`);
-  if (!proof.urls.some((item) => item.startsWith("ws://127.0.0.1:8788/pacts/"))) throw new Error(`socket was not the worker: ${proof.urls.join(" ")}`);
+  if (!proof.urls.some((item) => item.startsWith(socketPrefix))) throw new Error(`socket was not the worker: ${proof.urls.join(" ")}`);
+  if (proof.urls.some((item) => item.includes("x-pact-sig") || item.includes("?"))) throw new Error(`signature was in the socket URL: ${proof.urls.join(" ")}`);
   if (proof.broadcasts !== 0 || proof.sse !== 0) throw new Error(`side channel used: ${JSON.stringify(proof)}`);
   if (!proof.localBoxes) throw new Error(`second context changed its own boxes: ${JSON.stringify(proof)}`);
   console.log(

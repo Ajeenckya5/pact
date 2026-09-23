@@ -1,21 +1,33 @@
-import { parseInviteFragment } from "@pact/core";
+import { inviteProof, parseInviteFragment } from "@pact/core";
 
-export type LivePact = { pactId: string; secret: string };
+export type LivePact = { pactId: string; epochKey: Uint8Array | null };
 
-export function tabId() {
-  const existing = sessionStorage.getItem("pact.tab");
-  if (existing) return existing;
-  const next = crypto.randomUUID();
-  sessionStorage.setItem("pact.tab", next);
-  return next;
-}
-
+const secrets = new Map<string, string>();
+const epochKeys = new Map<string, Uint8Array>();
 const roomListeners = new Set<() => void>();
 let roomCache: LivePact | null | undefined;
 
 function publishRoom(next: LivePact | null) {
   roomCache = next;
   for (const listener of roomListeners) listener();
+}
+
+function browserStorage() {
+  return window.sessionStorage;
+}
+
+function clearFragment() {
+  if (!window.location.hash) return;
+  const next = `${window.location.pathname}${window.location.search}`;
+  window.history.replaceState(window.history.state, "", next);
+}
+
+export function tabId() {
+  const existing = browserStorage().getItem("pact.tab");
+  if (existing) return existing;
+  const next = crypto.randomUUID();
+  browserStorage().setItem("pact.tab", next);
+  return next;
 }
 
 export function subscribeRoom(listener: () => void) {
@@ -28,29 +40,48 @@ export function roomSnapshot() {
   return roomCache;
 }
 
+export function heldInvite(pactId: string) {
+  return secrets.get(pactId) ?? null;
+}
+
 export function rememberPact(pactId: string, secret: string) {
-  sessionStorage.setItem(`pact.secret.${pactId}`, secret);
-  sessionStorage.setItem("pact.live", JSON.stringify({ pactId }));
-  publishRoom({ pactId, secret });
+  secrets.set(pactId, secret);
+  browserStorage().setItem("pact.live", JSON.stringify({ pactId }));
+  clearFragment();
+  publishRoom({ pactId, epochKey: epochKeys.get(pactId) ?? null });
   window.dispatchEvent(new Event("pact-live"));
 }
 
 export function readPact(): LivePact | null {
   const fromHash = parseInviteFragment(window.location.hash);
   if (fromHash) {
-    sessionStorage.setItem(`pact.secret.${fromHash.pactId}`, fromHash.inviteSecret);
-    sessionStorage.setItem("pact.live", JSON.stringify({ pactId: fromHash.pactId }));
-    return { pactId: fromHash.pactId, secret: fromHash.inviteSecret };
+    secrets.set(fromHash.pactId, fromHash.inviteSecret);
+    browserStorage().setItem("pact.live", JSON.stringify({ pactId: fromHash.pactId }));
+    clearFragment();
+    return { pactId: fromHash.pactId, epochKey: epochKeys.get(fromHash.pactId) ?? null };
   }
-  const raw = sessionStorage.getItem("pact.live");
+  const raw = browserStorage().getItem("pact.live");
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as { pactId?: string };
     if (!parsed.pactId) return null;
-    const secret = sessionStorage.getItem(`pact.secret.${parsed.pactId}`);
-    if (!secret) return null;
-    return { pactId: parsed.pactId, secret };
+    return { pactId: parsed.pactId, epochKey: epochKeys.get(parsed.pactId) ?? null };
   } catch {
     return null;
   }
+}
+
+/** The MAC is what gets sent. The invite secret does not survive this call. */
+export async function issueJoinMac(pactId: string) {
+  const secret = secrets.get(pactId);
+  if (!secret) return null;
+  const mac = await inviteProof(secret, pactId);
+  secrets.delete(pactId);
+  return mac;
+}
+
+export function setEpochKey(pactId: string, epochKey: Uint8Array) {
+  epochKeys.set(pactId, epochKey);
+  const current = roomCache === undefined ? null : roomCache;
+  if (current?.pactId === pactId) publishRoom({ pactId, epochKey });
 }

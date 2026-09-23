@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createSigningKey, openEnvelope, pactHeaders, sealEnvelope } from "../../../packages/core/src/seal";
-import { foreignFields, localEpoch, localHour, readableHealth, type Flags, type PactEnvelope } from "../../../packages/core/src/wire";
+import { epochUtcMs, foreignFields, localEpoch, localHour, readableHealth, type Flags, type PactEnvelope } from "../../../packages/core/src/wire";
 import { retain, roomFetch, type RoomCtx, type RoomStorage } from "./room";
 
 const flagsOn: Flags = { realtime: "on", moments: "on", sync: "on" };
+const epochKey = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
 
 function memory(): RoomStorage & { dump(): Map<string, unknown> } {
   const map = new Map<string, unknown>();
@@ -66,6 +67,17 @@ async function post(
 }
 
 describe("pact room durable log", () => {
+  it("rejects a signature that is only on the URL", async () => {
+    const room = ctx();
+    const keys = await createSigningKey();
+    const path = "/pacts/p1/messages";
+    const headers = await pactHeaders(keys, { method: "GET", path, body: "", now: Date.UTC(2026, 8, 23, 18, 0, 0), offsetMin: 0 });
+    const query = new URLSearchParams();
+    for (const [name, value] of Object.entries(headers)) query.set(name.toLowerCase(), value);
+    const response = await roomFetch(room, new Request(`https://pact.test${path}?${query}`), flagsOn, { now: () => Date.UTC(2026, 8, 23, 18, 0, 0) });
+    assert.equal(response.status, 401);
+  });
+
   it("stores and transmits only envelope fields", async () => {
     const room = ctx();
     const keys = await createSigningKey();
@@ -73,7 +85,7 @@ describe("pact room durable log", () => {
     const offsetMin = 0;
     const payload = { sleep: true, water: 800, box: "liter", value: 1, time: "20:00", heartRate: 62 };
     const envelope = await sealEnvelope({
-      inviteSecret: "shared-secret",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,
@@ -91,7 +103,7 @@ describe("pact room durable log", () => {
       assert.equal(readableHealth(JSON.stringify(record)), false);
       assert.throws(() => JSON.parse(new TextDecoder().decode(b64(record.ct))));
     }
-    assert.deepEqual(await openEnvelope("shared-secret", stored), payload);
+    assert.deepEqual(await openEnvelope(epochKey, stored), payload);
     assert.equal(stored.senderPk, keys.pk);
   });
 
@@ -100,7 +112,7 @@ describe("pact room durable log", () => {
     const keys = await createSigningKey();
     const now = Date.UTC(2026, 8, 23, 18, 0, 0);
     const envelope = await sealEnvelope({
-      inviteSecret: "shared-secret",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,
@@ -141,7 +153,7 @@ describe("pact room durable log", () => {
     const keys = await createSigningKey();
     const now = Date.UTC(2026, 8, 23, 18, 0, 0);
     const envelope = await sealEnvelope({
-      inviteSecret: "shared-secret",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,
@@ -181,7 +193,7 @@ describe("pact room durable log", () => {
     assert.equal(localHour(quietNow, quietOffset), 23);
     const room = ctx();
     const quiet = await sealEnvelope({
-      inviteSecret: "shared-secret",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,
@@ -196,7 +208,7 @@ describe("pact room durable log", () => {
     const morning = Date.UTC(2026, 8, 23, 6, 30, 0);
     assert.equal(localHour(morning, 0), 6);
     const early = await sealEnvelope({
-      inviteSecret: "shared-secret",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,
@@ -210,7 +222,7 @@ describe("pact room durable log", () => {
     for (let i = 0; i < 3; i += 1) {
       const stamp = noon + i * 1000;
       const envelope = await sealEnvelope({
-        inviteSecret: "shared-secret",
+        epochKey,
         pactId: "p1",
         senderPk: keys.pk,
         senderSk: keys.sk,
@@ -222,7 +234,7 @@ describe("pact room durable log", () => {
       assert.equal((await post(room, keys, envelope, stamp, 0)).status, 201);
     }
     const fourth = await sealEnvelope({
-      inviteSecret: "shared-secret",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,
@@ -235,12 +247,12 @@ describe("pact room durable log", () => {
     assert.equal(room.sent.length, 3);
   });
 
-  it("keeps an ordered log and drops events older than 30 days", async () => {
+  it("keeps check-ins for 400 days and messages for 180", async () => {
     const room = ctx();
     const keys = await createSigningKey();
     const now = Date.UTC(2026, 8, 23, 15, 0, 0);
     const first = await sealEnvelope({
-      inviteSecret: "s",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,
@@ -250,7 +262,7 @@ describe("pact room durable log", () => {
       offsetMin: 0,
     });
     const second = await sealEnvelope({
-      inviteSecret: "s",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,
@@ -264,17 +276,29 @@ describe("pact room durable log", () => {
     const keysInOrder = [...room.storage.dump().keys()].filter((key) => key.startsWith("log:")).sort();
     assert.deepEqual(keysInOrder, ["log:00000001", "log:00000002"]);
     await room.storage.put("log:00000000", { ...first, epoch: 20200101 });
-    await retain(room.storage, localEpoch(now, 0));
+    const today = localEpoch(now, 0);
+    await room.storage.put("log:00000010", { ...first, kind: "chat", epoch: daysBefore(today, 200) });
+    await room.storage.put("log:00000011", { ...first, kind: "boxes", epoch: daysBefore(today, 200) });
+    await room.storage.put("log:00000012", { ...first, kind: "boxes", epoch: daysBefore(today, 401) });
+    await retain(room.storage, today);
     assert.equal(room.storage.dump().has("log:00000000"), false);
     assert.equal(room.storage.dump().has("log:00000001"), true);
+    assert.equal(room.storage.dump().has("log:00000010"), false);
+    assert.equal(room.storage.dump().has("log:00000011"), true);
+    assert.equal(room.storage.dump().has("log:00000012"), false);
   });
+
+function daysBefore(today: number, days: number) {
+  const date = new Date(epochUtcMs(today) - days * 86_400_000);
+  return date.getUTCFullYear() * 10000 + (date.getUTCMonth() + 1) * 100 + date.getUTCDate();
+}
 
   it("does not push when realtime is off", async () => {
     const room = ctx();
     const keys = await createSigningKey();
     const now = Date.UTC(2026, 8, 23, 15, 0, 0);
     const envelope = await sealEnvelope({
-      inviteSecret: "s",
+      epochKey,
       pactId: "p1",
       senderPk: keys.pk,
       senderSk: keys.sk,

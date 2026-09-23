@@ -6,6 +6,7 @@ import {
   nudgeDecision,
   readableHealth,
   retained,
+  retentionDays,
   verifyEd25519,
   verifyRequest,
   envelopeCanon,
@@ -38,8 +39,8 @@ function pactIdFrom(url: URL) {
   return index >= 0 ? decodeURIComponent(parts[index + 1] ?? "") : "";
 }
 
-function readSigned(request: Request, url: URL) {
-  const pick = (name: string) => request.headers.get(name) ?? url.searchParams.get(name);
+function readSigned(request: Request) {
+  const pick = (name: string) => request.headers.get(name);
   const pk = pick("x-pact-pk");
   const tsRaw = pick("x-pact-ts");
   const sig = pick("x-pact-sig");
@@ -50,7 +51,7 @@ function readSigned(request: Request, url: URL) {
 
 export async function signedRequest(request: Request, body: string, clock: Clock = DEFAULT_CLOCK) {
   const url = new URL(request.url);
-  const signed = readSigned(request, url);
+  const signed = readSigned(request);
   if (!signed) return null;
   const ok = await verifyRequest({
     ...signed,
@@ -69,13 +70,8 @@ async function logEntries(storage: RoomStorage) {
 
 export async function retain(storage: RoomStorage, today = localEpoch(Date.now(), 0)) {
   for (const [key, value] of await logEntries(storage)) {
-    if (!value || typeof value.epoch !== "number" || !retained(value.epoch, today)) await storage.delete(key);
-  }
-  const left = await logEntries(storage);
-  const extra = left.length - 500;
-  for (let i = 0; i < extra; i += 1) {
-    const row = left[i];
-    if (row) await storage.delete(row[0]);
+    const kind = value && typeof value.kind === "string" ? value.kind : "chat";
+    if (!value || typeof value.epoch !== "number" || !retained(value.epoch, today, retentionDays(kind))) await storage.delete(key);
   }
 }
 
@@ -96,6 +92,20 @@ export async function roomFetch(ctx: RoomCtx, request: Request, flags: Flags, cl
   const body = request.method === "GET" || request.method === "DELETE" || request.method === "HEAD" ? "" : await request.text();
   const auth = await signedRequest(request, body, clock);
   if (!auth) return new Response("Rejected", { status: 401 });
+
+  if (request.method === "POST" && url.pathname.endsWith("/join")) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      return new Response("Bad request", { status: 400 });
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return new Response("Rejected", { status: 400 });
+    const record = parsed as Record<string, unknown>;
+    if (Object.keys(record).length !== 1 || typeof record.mac !== "string" || record.mac.length < 20) return new Response("Rejected", { status: 400 });
+    await ctx.storage.put(`join:${auth.pk}`, { mac: record.mac });
+    return Response.json({ ok: true }, { status: 201 });
+  }
 
   if (request.method === "GET" && url.pathname.endsWith("/messages")) {
     const viewer = url.searchParams.get("viewer");

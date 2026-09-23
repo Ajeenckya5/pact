@@ -35,7 +35,6 @@ export function RecipeKitchen() {
   const store = usePact();
   const goal = useGoal();
   const [catalog, setCatalog] = useState<KitchenRecipe[]>([]);
-  const [live, setLive] = useState(0);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -88,7 +87,6 @@ export function RecipeKitchen() {
     clientRecipeCatalog()
       .then((d) => {
         setCatalog(d.recipes ?? []);
-        setLive(d.live ?? 0);
         setStatus("ok");
       })
       .catch(() => {
@@ -103,7 +101,6 @@ export function RecipeKitchen() {
       .then((d) => {
         if (!active) return;
         setCatalog(d.recipes ?? []);
-        setLive(d.live ?? 0);
         setStatus("ok");
       })
       .catch(() => {
@@ -152,8 +149,8 @@ export function RecipeKitchen() {
           <h1 className="mt-2 font-display text-4xl tracking-tight">PactSolve. Inverse macros, not a scale slider.</h1>
           <p className="mt-3 max-w-2xl text-mute">
             {status === "ok"
-              ? `${rows.length} recipes match your diet from ${catalog.length} in the catalog (${live} live from TheMealDB). PactSolve picks protein-dense swaps, then solves grams to kcal / P / C / F together — the trick Eat This Much and uniform scalers miss.`
-              : "Pulling TheMealDB A–Z plus Pact plates, then scoring them against this meal’s macros."}
+              ? `${rows.length} recipes match your diet from ${catalog.length} pantry plates. Macros come from those foods. PactSolve then fits grams to this meal.`
+              : "Loading pantry plates and scoring them against this meal’s macros."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -247,7 +244,7 @@ export function RecipeKitchen() {
               </Chip>
             ))}
           </div>
-          {status === "loading" ? <p className="text-sm text-mute">Loading the full TheMealDB catalog…</p> : null}
+          {status === "loading" ? <p className="text-sm text-mute">Loading pantry plates…</p> : null}
           {status === "error" ? <p className="text-sm text-gold">Catalog unavailable. Try refresh.</p> : null}
           <div className="max-h-[72vh] space-y-2 overflow-y-auto pr-1">
             {rows.slice(0, shown).map((row) => {
@@ -304,7 +301,7 @@ export function RecipeKitchen() {
               <div className="space-y-5 p-5">
                 <div>
                   <p className="text-xs text-mute">
-                    {draft.source === "pact" ? "Pact" : "TheMealDB"} · {draft.category}
+                    Pact · {draft.category}
                     {draft.area ? ` · ${draft.area}` : ""}
                     {solveScore != null ? ` · PactSolve ${solveScore}/100` : ""}
                   </p>

@@ -2,5 +2,16 @@ name = "pact-api"
 main = "src/worker.ts"
 compatibility_date = "2026-09-01"
 
-[vars]
-# Free-plan Worker. Ciphertext only. Deploy after the Cloudflare account exists.
+# Local Durable Object + KV. Do not deploy until the Cloudflare account exists.
+
+[[durable_objects.bindings]]
+name = "PACT_ROOM"
+class_name = "PactRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PactRoom"]
+
+[[kv_namespaces]]
+binding = "PACT_CONFIG"
+id = "pactconfig000000000000000000000001"

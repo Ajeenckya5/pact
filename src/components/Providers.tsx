@@ -1,5 +1,6 @@
 "use client";
 
+import { PactLive } from "@/components/PactLive";
 import { PactProvider, usePact } from "@/lib/store";
 import { LiveTrackProvider } from "@/lib/live-track-context";
 import { LocationProvider } from "@/lib/use-live";
@@ -9,11 +10,13 @@ import type { ReactNode } from "react";
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <PactProvider>
-      <LocationProvider>
-        <WearableLiveProvider>
-          <LiveTrackProvider>{children}</LiveTrackProvider>
-        </WearableLiveProvider>
-      </LocationProvider>
+      <PactLive>
+        <LocationProvider>
+          <WearableLiveProvider>
+            <LiveTrackProvider>{children}</LiveTrackProvider>
+          </WearableLiveProvider>
+        </LocationProvider>
+      </PactLive>
     </PactProvider>
   );
 }

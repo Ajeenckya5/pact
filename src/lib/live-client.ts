@@ -80,12 +80,12 @@ const FEED_PROBES = [
     probe: "https://world.openfoodfacts.org/api/v2/search?search_terms=oats&page_size=1",
   },
   {
-    id: "mealdb",
-    name: "TheMealDB",
-    use: "Recipes from ingredients",
-    url: "https://www.themealdb.com",
+    id: "plates",
+    name: "Pact plates",
+    use: "Recipes from the pantry",
+    url: "",
     key: false,
-    probe: "https://www.themealdb.com/api/json/v1/1/search.php?s=chicken",
+    probe: "",
   },
   {
     id: "wger",
@@ -127,7 +127,7 @@ export async function clientFeeds(): Promise<{ feeds: ClientFeed[] }> {
       const feeds = await Promise.all(
     FEED_PROBES.map(async (feed) => {
       const started = Date.now();
-      const ok = await fetchStatus(feed.probe);
+      const ok = feed.probe ? await fetchStatus(feed.probe) : true;
       return { id: feed.id, name: feed.name, use: feed.use, url: feed.url, key: feed.key, ok, ms: Date.now() - started };
     }),
   );

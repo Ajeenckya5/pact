@@ -80,3 +80,21 @@ export async function fetchJson<T>(url: string, init?: FetchJsonInit): Promise<F
   }
   return last;
 }
+
+const FORWARDED = ["content-type", "x-pact-pk", "x-pact-ts", "x-pact-sig", "x-pact-offset"];
+
+/** Proxy a signed browser request to the Worker. Fetch stays in this module. */
+export async function forward(request: Request, url: string) {
+  const headers = new Headers();
+  for (const name of FORWARDED) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  const method = request.method;
+  const body = method === "GET" || method === "HEAD" ? undefined : await request.arrayBuffer();
+  const res = await fetch(url, { method, headers, body, cache: "no-store" });
+  const out = new Headers();
+  const type = res.headers.get("content-type");
+  if (type) out.set("content-type", type);
+  return new Response(res.body, { status: res.status, headers: out });
+}

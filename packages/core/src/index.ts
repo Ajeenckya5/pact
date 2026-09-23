@@ -1,12 +1,10 @@
 export { dailyCall, recoveryAgeReady, HEALTH_TO_ENGINE } from "../../engine/src/index";
-export { localDateKey, previousDateKey, streakEnding } from "./streak";
+export { localDateKey, pactDateKey, previousDateKey, streakEnding } from "./streak";
 export {
   createDeviceKeys,
   inviteFragment,
   inviteProof,
-  openMessage,
   openSeal,
-  sealMessage,
   parseInviteFragment,
   publicKeyHex,
   randomSecret,
@@ -14,6 +12,28 @@ export {
   type DeviceKeys,
   type Sealed,
 } from "./crypto";
+export { forward } from "./net";
+export { createSigningKey, openEnvelope, pactHeaders, sealEnvelope, signBytes } from "./seal";
+export {
+  DEFAULT_FLAGS,
+  ENVELOPE_FIELDS,
+  NUDGE_CAP,
+  applyFlag,
+  assertEnvelope,
+  countEvent,
+  foreignFields,
+  localEpoch,
+  localHour,
+  normalizeFlags,
+  nudgeDecision,
+  readableHealth,
+  retained,
+  shouldSendReceipt,
+  verifyRequest,
+  type EnvelopeKind,
+  type Flags,
+  type PactEnvelope,
+} from "./wire";
 export { NOTIFICATIONS, QUIET_HOURS } from "./notifications";
 export { PERMISSIONS } from "./permissions";
 export { foodFromOffPayload, portionOf, type OffFood } from "./food";

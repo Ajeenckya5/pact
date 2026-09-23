@@ -7,18 +7,20 @@ import Link from "next/link";
 
 export default function ChatIndexPage() {
   const store = usePact();
-  const threads = peopleInCircle(store.friends, store.extraFriends, store.demo);
+  const threads = peopleInCircle(store.friends, store.extraFriends, store.demo).filter(
+    (person) => !store.blocked.includes(person.id),
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <h1 className="font-display text-4xl tracking-tight">Chat</h1>
       <p className="text-mute">
         Photos, nudges, and session shares with people. Training and diet sit in{" "}
-        <Link href="/coach" className="text-acid">
+        <Link href="/coach" className="text-acid underline underline-offset-2">
           Pact Coach
         </Link>
         . App how-tos sit in{" "}
-        <Link href="/faq" className="text-acid">
+        <Link href="/faq" className="text-acid underline underline-offset-2">
           FAQ
         </Link>
         . Read receipts stay off unless you flip them in Privacy.

@@ -1,5 +1,10 @@
 /** Local calendar streaks. Daylight-saving jumps still count as one day. */
 
+/** Hours before 03:00 local belong to the previous pact day. */
+export function pactDateKey(instant: Date, timeZone: string) {
+  return localDateKey(new Date(instant.getTime() - 3 * 60 * 60 * 1000), timeZone);
+}
+
 export function localDateKey(instant: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,

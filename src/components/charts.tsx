@@ -2,6 +2,7 @@
 
 export function ScoreRing({
   value,
+  blank = false,
   max = 100,
   size = 168,
   label,
@@ -10,6 +11,7 @@ export function ScoreRing({
   track = "rgba(255,255,255,0.08)",
 }: {
   value: number;
+  blank?: boolean;
   max?: number;
   size?: number;
   label: string;
@@ -20,7 +22,7 @@ export function ScoreRing({
   const stroke = 10;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(1, value / max));
+  const pct = blank ? 0 : Math.max(0, Math.min(1, value / max));
   const dash = c * (1 - pct);
 
   return (
@@ -40,7 +42,7 @@ export function ScoreRing({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <p className="font-mono text-[42px] leading-none tracking-tight text-cream">{Math.round(value)}</p>
+        <p className="font-mono text-[42px] leading-none tracking-tight text-cream">{blank ? "—" : Math.round(value)}</p>
         <p className="mt-2 text-[10px] uppercase tracking-[0.22em] text-mute">{label}</p>
         {sub ? <p className="mt-1 text-xs text-mute">{sub}</p> : null}
       </div>

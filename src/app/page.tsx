@@ -1,6 +1,7 @@
 "use client";
 
 import { ClipResult, ClipScanButton } from "@/components/ClipScan";
+import { usePartner } from "@/components/PactLive";
 import { ScoreRing, Sparkline } from "@/components/charts";
 import { TodaySession } from "@/components/TodaySession";
 import { WearableLiveStrip } from "@/components/WearableLive";
@@ -10,7 +11,10 @@ import type { AppPhotoScan } from "@/lib/app-vision";
 import { GOALS } from "@/lib/data";
 import { fmt } from "@/lib/format";
 import { copyText, formatWater, pactShareText, remainingMacros, waterAdds, weekRecap } from "@/lib/experience";
+import { hasPactData } from "@/lib/score-ready";
+import { personalToday } from "@/lib/personal-today";
 import { mealTotals, pactScore, useGoal, usePact } from "@/lib/store";
+import { dailyCall } from "@pact/core";
 import { useCoords } from "@/lib/use-live";
 import { liveOrLog } from "@/lib/wearable-live";
 import { useLiveBody } from "@/lib/wearable-live-context";
@@ -25,6 +29,7 @@ export default function OverviewPage() {
   const goal = useGoal();
   const { body } = useLiveBody();
   const totals = mealTotals(store.meals);
+  const scored = hasPactData(store);
   const score = pactScore({ ...store, recovery: body.recovery, sleepScore: body.sleepScore });
   const hydro = Math.min(100, (store.waterMl / goal.waterMl) * 100);
   const protein = Math.min(100, (totals.protein / goal.protein) * 100);
@@ -37,6 +42,7 @@ export default function OverviewPage() {
     week,
     Object.values(store.checkins).filter(Boolean).length,
   );
+  const partner = usePartner();
   const [clip, setClip] = useState<{ scan: AppPhotoScan; preview: string } | null>(null);
   const pactBits = [
     { key: "sleep" as const, label: "Sleep 7h+", icon: Moon, done: store.checkins.sleep },
@@ -45,19 +51,44 @@ export default function OverviewPage() {
     { key: "move" as const, label: "Train today", icon: PersonStanding, done: store.checkins.move },
   ];
 
+  const boxesOpen = pactBits.filter((bit) => !bit.done).length;
+  const measured = store.demo || body.ble.links > 0;
+  const call = dailyCall({
+    measured,
+    recovery: measured ? body.recovery : null,
+    strain: measured ? body.strain : null,
+    sleepScore: measured ? body.sleepScore : null,
+  });
+  const personal = personalToday({
+    call: call.call,
+    hour: new Date().getHours(),
+    waterMl: store.waterMl,
+    waterGoal: goal.waterMl,
+    proteinLeft: Math.max(0, Math.round(goal.protein - totals.protein)),
+    boxesOpen,
+    empty: !store.demo && store.meals.length === 0 && store.waterMl === 0 && boxesOpen === 4,
+  });
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6" data-call={call.call}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Eyebrow>Live · {here.ready && here.label ? here.label : store.demo ? "San Francisco" : "Set a city"}</Eyebrow>
+          <Eyebrow>
+            {here.ready && here.label
+              ? `Live · ${here.label}`
+              : store.demo
+                ? "Live · San Francisco"
+                : "Set a city for weather"}
+          </Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">
             {store.demo
               ? `Good training weather, ${(store.profile.name.trim() || "you").split(" ")[0]}.`
-              : "Today is empty until you log it."}
+              : personal.headline}
           </h1>
           <p className="mt-3 max-w-xl text-mute">
-            Log sleep, protein, water, and training. Pair a strap when you want live heart rate. Sample data is optional
-            and labeled.
+            {store.demo
+              ? "Log sleep, protein, water, and training. Pair a strap when you want live heart rate. Sample data is optional and labeled."
+              : personal.detail}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -109,7 +140,12 @@ export default function OverviewPage() {
         <Card className="p-6 lg:col-span-4">
           <Eyebrow>Pact score</Eyebrow>
           <div className="mt-4 flex justify-center">
-            <ScoreRing value={score} label="Today" sub="Recovery, fuel, the pact" />
+            <ScoreRing
+              value={score}
+              blank={!scored}
+              label="Today"
+              sub={scored ? "Recovery, fuel, the pact" : "Log something to see a score"}
+            />
           </div>
           <p className="mt-4 text-center text-sm text-mute">
             Weighted from recovery, sleep, fuel, water, training, and the pact you actually keep.
@@ -194,6 +230,28 @@ export default function OverviewPage() {
           );
         })}
       </div>
+      {partner.live === "open" ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-partner="open">
+          {(
+            [
+              ["sleep", "Sleep"],
+              ["fuel", "Protein"],
+              ["water", "Water"],
+              ["move", "Train"],
+            ] as const
+          ).map(([key, label]) => (
+            <div
+              key={`${key}-${partner.pulse[key] ?? 0}`}
+              data-partner-box={key}
+              data-partner-done={partner.partner[key] ? "yes" : "no"}
+              className={`rounded-2xl border px-3 py-3 ${partner.pulse[key] ? "pact-pop border-acid" : "border-line"}`}
+            >
+              <p className="text-[11px] uppercase tracking-[0.16em] text-mute">Partner {label}</p>
+              <p className="mt-2 font-medium">{partner.partner[key] ? "In" : "—"}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
         <div>
@@ -262,10 +320,10 @@ export default function OverviewPage() {
           <div className="flex items-center justify-between">
             <Eyebrow>Fuel</Eyebrow>
             <div className="flex gap-3">
-              <Link href="/recipes" className="text-xs text-acid">
+              <Link href="/recipes" className="text-xs text-acid underline underline-offset-2">
                 Kitchen
               </Link>
-              <Link href="/calories" className="text-xs text-acid">
+              <Link href="/calories" className="text-xs text-acid underline underline-offset-2">
                 AI scan
               </Link>
             </div>
@@ -301,7 +359,7 @@ export default function OverviewPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <Eyebrow>Water</Eyebrow>
-            <Link href="/water" className="text-xs text-acid">
+            <Link href="/water" className="text-xs text-acid underline underline-offset-2">
               Log
             </Link>
           </div>
@@ -328,7 +386,7 @@ export default function OverviewPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <Eyebrow>Circle</Eyebrow>
-            <Link href="/friends" className="text-xs text-acid">
+            <Link href="/friends" className="text-xs text-acid underline underline-offset-2">
               Friends
             </Link>
           </div>

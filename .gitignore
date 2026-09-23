@@ -34,6 +34,7 @@ android/app/src/main/assets/public
 # misc
 .DS_Store
 *.pem
+workers/api/.wrangler/
 
 # debug
 npm-debug.log*

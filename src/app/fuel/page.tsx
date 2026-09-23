@@ -268,9 +268,9 @@ function FuelInner() {
       </div>
 
       <Card className="p-5">
-        <Eyebrow>TheMealDB catalog · diet + macros</Eyebrow>
+        <Eyebrow>Pantry plates · diet + macros</Eyebrow>
         <p className="mt-2 max-w-2xl text-sm text-mute">
-          Every letter A–Z, plus Pact plates. Filter vegan / gluten-free / keto, then change kcal, protein, carbs, or fat — ingredient amounts and swaps follow.
+          Plates are built from the pantry, so the macros match those foods. Filter a diet, then change kcal, protein, carbs, or fat — amounts and swaps follow.
         </p>
         <Link
           href="/recipes"

@@ -62,6 +62,25 @@ body {
   color: #8d95a8;
 }
 
+@keyframes pact-pop {
+  0% {
+    transform: scale(0.96);
+    background-color: rgba(214, 255, 63, 0.35);
+  }
+  100% {
+    transform: scale(1);
+    background-color: transparent;
+  }
+}
+
+.pact-pop {
+  animation: pact-pop 0.6s ease;
+}
+
+html.reduce-motion .pact-pop {
+  animation: none;
+}
+
 html.light {
   --background: #f6f1e7;
   --foreground: #1a1814;

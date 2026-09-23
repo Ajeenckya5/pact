@@ -1,4 +1,5 @@
 import { DEFAULT_FLAGS, normalizeFlags, type Flags } from "@pact/core";
+import { pactApi } from "@/lib/api-origin";
 import { fetchJson } from "@/lib/http";
 
 const KEY = "pact.flags";
@@ -17,7 +18,7 @@ export function writeCachedFlags(flags: Flags) {
 }
 
 export async function refreshFlags() {
-  const result = await fetchJson<{ flags?: Flags }>("/api/config", { retries: 0 });
+  const result = await fetchJson<{ flags?: Flags }>(pactApi("/config"), { retries: 0 });
   if (result.ok && result.data.flags) {
     const flags = normalizeFlags(result.data.flags);
     writeCachedFlags(flags);

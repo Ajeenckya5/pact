@@ -1,6 +1,7 @@
 "use client";
 
 import { openEnvelope, pactHeaders, shouldSendReceipt, type Flags, type PactEnvelope } from "@pact/core";
+import { pactApi } from "@/lib/api-origin";
 import { queueEnvelope } from "@/lib/deliver";
 import { tap } from "@/lib/experience";
 import { readCachedFlags, refreshFlags } from "@/lib/flags";
@@ -111,7 +112,7 @@ export function PactLive({ children }: { children: ReactNode }) {
       const keys = await deviceIdentity();
       if (cancelled) return;
       liveApi.pk = keys.pk;
-      const result = await fetchJson<{ url: string | null }>("/api/live", { retries: 0 });
+      const result = await fetchJson<{ url: string | null }>(pactApi("/live"), { retries: 0 });
       if (cancelled) return;
       const url = result.ok ? result.data.url : null;
       if (!url) return;
@@ -239,7 +240,7 @@ async function sendLive(room: LivePact, kind: "boxes" | "chat" | "nudge" | "seen
   const ok = await queueEnvelope(room.pactId, room.secret, kind, payload);
   const name = kind === "boxes" ? "boxes" : kind === "nudge" ? "nudge" : kind === "seen" ? "seen" : "sync";
   if (ok) {
-    void fetchJson("/api/events", {
+    void fetchJson(pactApi("/events"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name }),

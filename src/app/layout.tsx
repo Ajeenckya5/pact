@@ -29,7 +29,14 @@ export const metadata: Metadata = {
   applicationName: "Pact",
   manifest: `${assetBase}/manifest.webmanifest`,
   icons: { icon: `${assetBase}/icons/icon-192.png`, apple: `${assetBase}/icons/icon-180.png` },
-  appleWebApp: { capable: true, title: "Pact" },
+  appleWebApp: { capable: true, title: "Pact", statusBarStyle: "black-translucent" },
+};
+
+export const viewport = {
+  themeColor: "#07080a",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -2,8 +2,11 @@
 
 import { ClipScanButton } from "@/components/ClipScan";
 import { Button, Field } from "@/components/ui";
+import { reportApi } from "@/lib/api-origin";
 import { clock } from "@/lib/format";
+import { deviceIdentity } from "@/lib/identity";
 import { fetchJson } from "@/lib/http";
+import { pactHeaders } from "@pact/core";
 import { usePact } from "@/lib/store";
 import { personById } from "@/lib/training";
 import Link from "next/link";
@@ -102,18 +105,23 @@ export default function ThreadPage() {
               const saved = store.reportMessage(id, reportId, reason);
               if (!saved) return;
               const message = (store.messages[id] ?? []).find((row) => row.id === reportId);
-              void fetchJson("/api/reports", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                retries: 0,
-                body: JSON.stringify({
+              void deviceIdentity().then(async (keys) => {
+                const body = JSON.stringify({
                   v: 1,
                   pactId: id,
                   reporter: store.profile.handle || "you",
                   messageId: reportId,
                   reason: reason.trim(),
                   text: message?.text ?? "",
-                }),
+                });
+                const path = `/pacts/${id}/reports`;
+                const headers = await pactHeaders(keys, { method: "POST", path, body });
+                await fetchJson(reportApi(id), {
+                  method: "POST",
+                  headers: { "content-type": "application/json", ...headers },
+                  retries: 0,
+                  body,
+                });
               });
               setReportId(null);
               setReason("");

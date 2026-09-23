@@ -1,5 +1,6 @@
 "use client";
 
+import { InstallApp } from "@/components/InstallApp";
 import { Button, Card, Eyebrow } from "@/components/ui";
 import { GOALS } from "@/lib/data";
 import { REPORT_CONTACT_URL } from "@/lib/report";
@@ -60,6 +61,9 @@ export default function YouPage() {
             Leave sample data
           </Button>
         )}
+      </Card>
+      <Card className="space-y-2 p-6 text-sm text-mute">
+        <InstallApp />
       </Card>
       <Card className="space-y-2 p-6 text-sm text-mute">
         <p className="text-cream">Permissions</p>

@@ -4,6 +4,7 @@ import { Button, Card, Eyebrow, Field } from "@/components/ui";
 import { inviteFragment, openEnvelope, parseInviteFragment, pactHeaders, randomSecret, type PactEnvelope } from "@pact/core";
 import { queueEnvelope } from "@/lib/deliver";
 import { deviceIdentity } from "@/lib/identity";
+import { pactApi, reportApi } from "@/lib/api-origin";
 import { fetchJson } from "@/lib/http";
 import { rememberPact } from "@/lib/pact-session";
 import { usePact } from "@/lib/store";
@@ -67,7 +68,7 @@ export default function PeoplePage() {
     setSelfPk(keys.pk);
     const path = `/pacts/${pactId}/messages`;
     const headers = await pactHeaders(keys, { method: "GET", path, body: "" });
-    const result = await fetchJson<{ messages?: PactEnvelope[] }>(`/api${path}?viewer=${encodeURIComponent(keys.pk)}`, {
+    const result = await fetchJson<{ messages?: PactEnvelope[] }>(`${pactApi(path)}?viewer=${encodeURIComponent(keys.pk)}`, {
       headers,
       retries: 0,
     });
@@ -136,7 +137,7 @@ export default function PeoplePage() {
                           const body = JSON.stringify({ by: keys.pk, target: line.sender });
                           const path = `/pacts/${pactId}/blocks`;
                           const headers = await pactHeaders(keys, { method: "POST", path, body });
-                          await fetchJson(`/api${path}`, {
+                          await fetchJson(pactApi(path), {
                             method: "POST",
                             headers: { "content-type": "application/json", ...headers },
                             retries: 0,
@@ -171,7 +172,7 @@ export default function PeoplePage() {
                       });
                       const path = `/pacts/${pactId || line.id}/reports`;
                       const headers = await pactHeaders(keys, { method: "POST", path, body });
-                      await fetchJson("/api/reports", {
+                      await fetchJson(reportApi(pactId || line.id), {
                         method: "POST",
                         headers: { "content-type": "application/json", ...headers },
                         retries: 0,

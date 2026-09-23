@@ -1,4 +1,4 @@
-const CACHE = "pact-shell-v1";
+const CACHE = "pact-shell-v2";
 const SHELL = ["./"];
 
 self.addEventListener("install", (event) => {
@@ -12,14 +12,27 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let title = "Update available";
+  let title = "Pact";
+  let body = "Your partner nudged you.";
   try {
     const data = event.data ? event.data.json() : null;
-    if (data && data.title) title = data.title;
+    if (data && typeof data.title === "string") title = data.title;
+    if (data && typeof data.body === "string") body = data.body;
   } catch {
-    title = "Update available";
+    title = "Pact";
   }
-  event.waitUntil(self.registration.showNotification(title, { body: "Open Pact to read it.", tag: "pact-update" }));
+  event.waitUntil(self.registration.showNotification(title, { body, tag: "pact-nudge" }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((windowClient) => "focus" in windowClient);
+      if (open) return open.focus();
+      return self.clients.openWindow("./");
+    }),
+  );
 });
 
 self.addEventListener("fetch", (event) => {

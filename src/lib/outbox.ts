@@ -1,4 +1,5 @@
 import { pactHeaders, type PactEnvelope } from "@pact/core";
+import { pactApi } from "@/lib/api-origin";
 import { fetchJson } from "@/lib/http";
 import { deviceIdentity } from "@/lib/identity";
 
@@ -82,7 +83,7 @@ export async function flushOutbox() {
     const body = JSON.stringify(item.body);
     const path = `/pacts/${item.body.pactId}/messages`;
     const headers = await pactHeaders(keys, { method: "POST", path, body, now, offsetMin });
-    const result = await fetchJson(`/api${path}`, {
+    const result = await fetchJson(pactApi(path), {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
       body,

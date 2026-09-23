@@ -27,6 +27,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+const LIVE_WEB = process.env.NEXT_PUBLIC_PACT_WEB || "https://pact-aj.pages.dev";
+
+function PagesHome() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hostname is only known in the browser
+    setShow(window.location.hostname === "ajeenckya5.github.io");
+  }, []);
+  if (!show) return null;
+  return (
+    <p className="border-b border-line bg-acid/10 px-4 py-2 text-center text-sm text-cream">
+      The live app is at{" "}
+      <a className="text-acid underline underline-offset-2" href={LIVE_WEB}>
+        {LIVE_WEB.replace("https://", "")}
+      </a>
+      .
+    </p>
+  );
+}
+
 const NAV = [
   { href: "/", label: "Today", icon: LayoutGrid, group: "Pact" },
   { href: "/log", label: "Log", icon: Droplets, group: "Pact" },
@@ -154,6 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        <PagesHome />
         {store.demo ? (
           <p className="bg-[repeating-linear-gradient(135deg,rgba(214,255,63,0.22)_0_10px,transparent_10px_20px)] px-4 py-2 text-center text-xs font-semibold tracking-wide text-acid">
             Sample data

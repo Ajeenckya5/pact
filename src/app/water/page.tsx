@@ -73,9 +73,15 @@ export default function WaterPage() {
               Add heat bonus
             </Button>
           ) : null}
-          <Button className="mt-4 w-full" tone="quiet" onClick={() => store.addWater(-adds[0].ml)}>
-            Undo {adds[0].label.replace("+", "")}
-          </Button>
+          {(() => {
+            const last = [...(store.waterLog ?? [])].sort((a, b) => a.at.localeCompare(b.at)).at(-1);
+            const shownUndo = last ? formatWater(last.ml, units) : null;
+            return (
+              <Button className="mt-4 w-full" tone="quiet" disabled={!last} onClick={() => store.undoWater()}>
+                {shownUndo ? `Undo ${fmt(shownUndo.value)} ${shownUndo.unit}` : "Nothing to undo"}
+              </Button>
+            );
+          })()}
         </div>
       </Card>
 
@@ -84,9 +90,7 @@ export default function WaterPage() {
         <div className="mt-4">
           <Sparkline points={store.history.map((h) => h.water)} color="#5cc8ff" height={72} />
         </div>
-        <p className="mt-4 text-sm text-mute">
-          Under-drinking on Thursday lined up with the sleep leak. A friend can still tap you from Chat.
-        </p>
+        <p className="mt-4 text-sm text-mute">This week’s water only fills in after you log it.</p>
       </Card>
     </div>
   );

@@ -3,7 +3,6 @@
 import { JumpPalette } from "@/components/JumpPalette";
 import { Onboard } from "@/components/Onboard";
 import { ToastHost } from "@/components/Providers";
-import { USER } from "@/lib/data";
 import { pactScore, usePact } from "@/lib/store";
 import { useLiveBody } from "@/lib/wearable-live-context";
 import { cn } from "@/lib/cn";
@@ -95,9 +94,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
         <div className="mx-4 mb-4 rounded-2xl border border-line bg-card px-4 py-3">
-          <p className="text-sm font-medium">{USER.name}</p>
+          <p className="text-sm font-medium">{store.profile.name.trim() || "You"}</p>
           <p className="text-xs text-mute">
-            @{USER.handle} · {USER.streak} day streak
+            @{store.profile.handle || "you"} · {store.streak} day streak
+            {store.demo ? " · sample" : ""}
           </p>
           <p className="mt-2 font-mono text-sm text-acid">Pact score {score}</p>
         </div>
@@ -149,9 +149,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <p className="hidden text-sm text-mute lg:block">
+            {store.demo ? "Sample data · " : ""}
             {body.ble.links
               ? `BT ${body.ble.name ?? "device"} · Recovery ${body.recovery} · Strain ${body.strain.toFixed(1)}${body.hr != null ? ` · ${body.hr} bpm` : ""}`
-              : `Recovery ${body.recovery} · Strain ${body.strain.toFixed(1)} · Pact log · no wearable`}
+              : store.demo
+                ? `Recovery ${body.recovery} · Strain ${body.strain.toFixed(1)}`
+                : "No wearable connected"}
           </p>
           <div className="ml-auto flex items-center gap-3">
             <button

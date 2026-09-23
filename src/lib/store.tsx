@@ -22,6 +22,7 @@ import { combinePactScore } from "./algos";
 import { rankPlate } from "./plate-vision";
 import { mealSlice, matchIngredient, type DietId, type MealTargets } from "./kitchen";
 import { tap } from "./experience";
+import { pushSip, totalWater, undoLatestSip, type WaterSip } from "./water-log";
 import { emptyScore, friendFromContact, mergeContacts, seedScore } from "./training";
 import { migrateConnectedWearables } from "./wearable-live";
 import type {
@@ -88,6 +89,11 @@ export type PactState = {
   prefs: Prefs;
   favoriteFoods: string[];
   favoriteWorkouts: string[];
+  schema: number;
+  demo: boolean;
+  profile: { name: string; handle: string };
+  streak: number;
+  waterLog: WaterSip[];
 };
 
 const defaultPrivacy: PrivacySettings = {
@@ -254,7 +260,52 @@ const initial: PactState = {
   prefs: { units: "metric", onboarded: false, reducedMotion: false },
   favoriteFoods: ["chicken", "yogurt", "rice"],
   favoriteWorkouts: ["lift-squat", "full-body"],
+  schema: 2,
+  demo: true,
+  profile: { name: "Alex Rivera", handle: "alex.pact" },
+  streak: 47,
+  waterLog: [
+    { id: "w1", ml: 1000, at: "2026-09-12T14:00:00.000Z" },
+    { id: "w2", ml: 500, at: "2026-09-12T16:00:00.000Z" },
+    { id: "w3", ml: 350, at: "2026-09-12T18:00:00.000Z" },
+  ],
 };
+
+const sampleAccount: PactState = initial;
+
+function blankAccount(): PactState {
+  return {
+    ...sampleAccount,
+    demo: false,
+    profile: { name: "", handle: "" },
+    streak: 0,
+    stravaConnected: false,
+    waterMl: 0,
+    waterLog: [],
+    meals: [],
+    cart: [],
+    selectedIngredients: [],
+    orders: [],
+    friends: [],
+    workoutLogs: [],
+    groups: [],
+    messages: {},
+    posts: [],
+    checkins: { sleep: false, fuel: false, water: false, move: false },
+    readingMin: 0,
+    recovery: 0,
+    strain: 0,
+    sleepScore: 0,
+    sleepMin: 0,
+    hrv: 0,
+    rhr: 0,
+    steps: 0,
+    history: [],
+    favoriteFoods: [],
+    favoriteWorkouts: [],
+    prefs: { units: "metric", onboarded: false, reducedMotion: false },
+  };
+}
 
 type Store = PactState & {
   ready: boolean;
@@ -293,6 +344,9 @@ type Store = PactState & {
   toggleFavoriteWorkout: (id: string) => void;
   repeatLastMeal: () => void;
   undoLastMeal: () => void;
+  undoWater: () => void;
+  loadSample: () => void;
+  leaveSample: () => void;
   setCheckin: (key: keyof PactState["checkins"], v: boolean) => void;
   addReading: (min: number) => void;
   logWorkout: (entry: Omit<WorkoutLog, "id" | "at">) => void;
@@ -326,7 +380,7 @@ type Store = PactState & {
 const Ctx = createContext<Store | null>(null);
 
 export function PactProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PactState>(initial);
+  const [state, setState] = useState<PactState>(() => blankAccount());
   const [ready, setReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -335,9 +389,9 @@ export function PactProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<PactState>;
-        // Hydrate from the browser store after mount (localStorage is not available on the server).
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- external store hydration
-        setState((s) => {
+        if (parsed.schema === 2) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- external store hydration
+          setState((s) => {
           const parsedGoal = parsed.goal ?? s.goal;
           return {
             ...s,
@@ -359,6 +413,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
             connectedWearables: migrateConnectedWearables(parsed.connectedWearables),
           };
         });
+        }
       }
     } catch {
       /* demo store */
@@ -406,15 +461,48 @@ export function PactProvider({ children }: { children: ReactNode }) {
         flash(v ? "Strava connected" : "Strava disconnected");
       },
       addWater: (ml) => {
+        if (!ml) return;
         update((s) => {
-          const waterMl = Math.max(0, s.waterMl + ml);
+          const waterLog = pushSip(s.waterLog ?? [], {
+            id: uid(),
+            ml,
+            at: new Date().toISOString(),
+          });
+          const waterMl = totalWater(waterLog);
           const goal = goalById(s.goal).waterMl;
           return {
             ...s,
+            waterLog,
             waterMl,
             checkins: { ...s.checkins, water: waterMl >= goal },
           };
         });
+        flash(ml > 0 ? `Added ${ml} ml` : `Removed ${Math.abs(ml)} ml`);
+      },
+      undoWater: () => {
+        let removedMl = 0;
+        update((s) => {
+          const next = undoLatestSip(s.waterLog ?? []);
+          if (!next.removed) return s;
+          removedMl = next.removed.ml;
+          const waterMl = totalWater(next.log);
+          const goal = goalById(s.goal).waterMl;
+          return {
+            ...s,
+            waterLog: next.log,
+            waterMl,
+            checkins: { ...s.checkins, water: waterMl >= goal },
+          };
+        });
+        flash(removedMl ? `Removed ${removedMl} ml` : "Nothing to undo");
+      },
+      loadSample: () => {
+        update((s) => ({ ...sampleAccount, prefs: { ...sampleAccount.prefs, onboarded: s.prefs.onboarded } }));
+        flash("Sample data on");
+      },
+      leaveSample: () => {
+        update((s) => ({ ...blankAccount(), prefs: { ...blankAccount().prefs, onboarded: true, units: s.prefs.units } }));
+        flash("Sample data off");
       },
       addMeal: (meal) => {
         update((s) => {

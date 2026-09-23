@@ -91,7 +91,18 @@ async function getJson(url: string, init?: RequestInit) {
     signal: init?.signal ?? AbortSignal.timeout(24_000),
   });
   if (!res.ok) throw new Error(`${res.status} ${url}`);
-  return res.json() as Promise<unknown>;
+  const text = await res.text();
+  const type = res.headers.get("content-type") ?? "";
+  const trimmed = text.trim();
+  const looksJson = trimmed.startsWith("{") || trimmed.startsWith("[");
+  if (!type.includes("json") && !looksJson) {
+    throw new Error(`not json ${res.status} ${url}`);
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new Error(`invalid json ${url}`);
+  }
 }
 
 export function weatherLabel(code: number) {
@@ -251,7 +262,7 @@ async function loadPlaces(lat: number, lng: number, kind: "all" | "gym" | "groce
 export async function fetchFoods(q: string): Promise<LiveFood[]> {
   try {
     const data = (await getJson(
-      `https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=12`,
+      `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=12&fields=code,product_name,product_name_en,nutriments`,
     )) as {
       hits?: Array<{
         code?: string;
@@ -259,8 +270,14 @@ export async function fetchFoods(q: string): Promise<LiveFood[]> {
         product_name_en?: string;
         nutriments?: Record<string, number | string | undefined>;
       }>;
+      products?: Array<{
+        code?: string;
+        product_name?: string;
+        product_name_en?: string;
+        nutriments?: Record<string, number | string | undefined>;
+      }>;
     };
-    const foods = (data.hits ?? [])
+    const foods = (data.products ?? data.hits ?? [])
       .map((p) => {
         const name = p.product_name || p.product_name_en;
         if (!name) return null;
@@ -543,12 +560,10 @@ export async function geocode(q: string): Promise<GeoHit[]> {
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
   try {
     const data = (await getJson(
-      `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lng}&language=en&format=json`,
-    )) as {
-      results?: Array<{ name?: string; admin1?: string; country?: string }>;
-    };
-    const r = data.results?.[0];
-    if (r) return [r.name, r.admin1, r.country].filter(Boolean).join(", ");
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+    )) as { city?: string; locality?: string; principalSubdivision?: string; countryName?: string };
+    const label = [data.city || data.locality, data.principalSubdivision, data.countryName].filter(Boolean).join(", ");
+    if (label) return label;
   } catch {
     /* nominatim fallback */
   }

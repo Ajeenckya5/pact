@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Geist_Mono, Outfit, Syne } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import { Providers } from "@/components/Providers";
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     "Wearable-agnostic recovery, AI calories, workouts, friends, maps, groceries, and privacy — a fuller pact than a strain score.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"

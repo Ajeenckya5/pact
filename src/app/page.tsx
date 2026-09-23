@@ -7,7 +7,7 @@ import { WearableLiveStrip } from "@/components/WearableLive";
 import { WeatherStrip } from "@/components/WeatherStrip";
 import { Button, Card, Chip, Eyebrow, Progress, Stat } from "@/components/ui";
 import type { AppPhotoScan } from "@/lib/app-vision";
-import { GOALS, USER } from "@/lib/data";
+import { GOALS } from "@/lib/data";
 import { fmt } from "@/lib/format";
 import { copyText, formatWater, pactShareText, remainingMacros, waterAdds, weekRecap } from "@/lib/experience";
 import { mealTotals, pactScore, useGoal, usePact } from "@/lib/store";
@@ -49,16 +49,27 @@ export default function OverviewPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Eyebrow>Live · {here.ready && here.label ? here.label : USER.city}</Eyebrow>
+          <Eyebrow>Live · {here.ready && here.label ? here.label : store.demo ? "San Francisco" : "Set a city"}</Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">
-            Good training weather, {USER.name.split(" ")[0]}.
+            {store.demo
+              ? `Good training weather, ${(store.profile.name || "Alex").split(" ")[0]}.`
+              : "Today is empty until you log it."}
           </h1>
           <p className="mt-3 max-w-xl text-mute">
-            Today&apos;s session reads the Bluetooth device you paired (HR, cadence, power) plus your Pact log, goal, and
-            weather — not invented streams from every watch in the catalog. Fuel is still the protein gap.
+            Log sleep, protein, water, and training. Pair a strap when you want live heart rate. Sample data is optional
+            and labeled.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!store.demo ? (
+            <Button tone="ghost" onClick={() => store.loadSample()}>
+              Explore with sample data
+            </Button>
+          ) : (
+            <Button tone="ghost" onClick={() => store.leaveSample()}>
+              Leave sample data
+            </Button>
+          )}
           <ClipScanButton
             label="Scan a photo"
             onScan={(scan, _file, preview) => setClip({ scan, preview })}
@@ -106,13 +117,23 @@ export default function OverviewPage() {
         </Card>
         <Card className="grid gap-6 p-6 sm:grid-cols-3 lg:col-span-8">
           <div>
-            <Stat label="Recovery" value={body.recovery} hint={liveOrLog(body.authority.recovery)} tone="text-acid" />
+            <Stat
+              label="Recovery"
+              value={store.demo || body.ble.links ? body.recovery : "—"}
+              hint={store.demo ? "Sample" : liveOrLog(body.authority.recovery)}
+              tone="text-acid"
+            />
             <div className="mt-3">
               <Sparkline points={store.history.map((h) => h.recovery)} />
             </div>
           </div>
           <div>
-            <Stat label="Strain" value={body.strain.toFixed(1)} hint={liveOrLog(body.authority.strain)} tone="text-heat" />
+            <Stat
+              label="Strain"
+              value={store.demo || body.ble.links ? body.strain.toFixed(1) : "—"}
+              hint={store.demo ? "Sample" : liveOrLog(body.authority.strain)}
+              tone="text-heat"
+            />
             <div className="mt-3">
               <Sparkline points={store.history.map((h) => h.strain)} color="#ff6b4a" />
             </div>
@@ -120,8 +141,12 @@ export default function OverviewPage() {
           <div>
             <Stat
               label="Sleep"
-              value={body.sleepScore}
-              hint={`${Math.floor(body.sleepMin / 60)}h ${body.sleepMin % 60}m · ${liveOrLog(body.authority.sleep)}`}
+              value={store.demo || body.ble.links ? body.sleepScore : "—"}
+              hint={
+                store.demo || body.sleepMin
+                  ? `${Math.floor(body.sleepMin / 60)}h ${body.sleepMin % 60}m · ${store.demo ? "Sample" : liveOrLog(body.authority.sleep)}`
+                  : "No sleep logged"
+              }
               tone="text-violet"
             />
             <div className="mt-3">
@@ -130,16 +155,16 @@ export default function OverviewPage() {
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-mute">HRV</p>
-            <p className="mt-1 font-mono text-2xl">{body.hrv} ms</p>
+            <p className="mt-1 font-mono text-2xl">{store.demo || body.ble.links ? `${body.hrv} ms` : "—"}</p>
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-mute">Resting HR</p>
-            <p className="mt-1 font-mono text-2xl">{body.rhr} bpm</p>
+            <p className="mt-1 font-mono text-2xl">{store.demo || body.ble.links ? `${body.rhr} bpm` : "—"}</p>
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-mute">{body.hr != null ? "Heart rate" : "Steps"}</p>
             <p className="mt-1 font-mono text-2xl">
-              {body.hr != null ? `${body.hr} bpm` : fmt(body.steps)}
+              {body.hr != null ? `${body.hr} bpm` : store.demo ? fmt(body.steps) : "—"}
             </p>
             {body.hr != null ? <p className="mt-1 text-xs text-mute">{fmt(body.steps)} steps</p> : null}
           </div>
@@ -174,7 +199,7 @@ export default function OverviewPage() {
         <div>
           <Eyebrow>This week</Eyebrow>
           <p className="mt-2 text-lg">
-            Sleep {recap.sleep} · Recovery {recap.recovery} · {recap.sessions} sessions · {recap.minutes} min
+            Sleep {store.history.length ? recap.sleep : "—"} · Recovery {store.history.length ? recap.recovery : "—"} · {recap.sessions} sessions · {recap.minutes} min
           </p>
           <p className="mt-1 text-sm text-mute">
             {recap.boxes}/4 boxes today.
@@ -191,7 +216,7 @@ export default function OverviewPage() {
           onClick={async () => {
             const ok = await copyText(
               pactShareText({
-                name: USER.name.split(" ")[0],
+                name: (store.profile.name || "You").split(" ")[0],
                 checkins: store.checkins,
                 protein: totals.protein,
                 proteinGoal: goal.protein,

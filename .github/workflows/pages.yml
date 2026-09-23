@@ -34,7 +34,7 @@ jobs:
           NEXT_PUBLIC_PACT_API: https://pact-api.ajeenckya.workers.dev
           NEXT_PUBLIC_PACT_WEB: https://pact-aj.pages.dev
         run: node scripts/static-export.mjs
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: out
       - id: deploy

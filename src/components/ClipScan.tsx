@@ -7,6 +7,7 @@ import {
   identifyPhoto,
   type AppPhotoScan,
 } from "@/lib/app-vision";
+import { CLIP_DOWNLOAD_MB, allowClipDownload, clipAllowed } from "@/lib/plate-net";
 import { usePact } from "@/lib/store";
 import { Camera } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +26,7 @@ export function ClipScanButton({
   const ref = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [ask, setAsk] = useState(false);
 
   async function onFile(file: File) {
     setErr(null);
@@ -41,10 +43,37 @@ export function ClipScanButton({
 
   return (
     <span className="inline-flex flex-col items-start gap-1">
-      <Button type="button" tone={tone} disabled={Boolean(phase)} onClick={() => ref.current?.click()}>
+      <Button
+        type="button"
+        tone={tone}
+        disabled={Boolean(phase)}
+        onClick={() => {
+          if (!clipAllowed()) {
+            setAsk(true);
+            return;
+          }
+          ref.current?.click();
+        }}
+      >
         <Camera className="h-4 w-4" />
         {phase ?? label}
       </Button>
+      {ask ? (
+        <span className="max-w-xs text-xs text-mute">
+          This downloads about {CLIP_DOWNLOAD_MB} MB and keeps the photo on this device.
+          <Button
+            type="button"
+            className="mt-2"
+            onClick={() => {
+              allowClipDownload();
+              setAsk(false);
+              ref.current?.click();
+            }}
+          >
+            Download on this connection
+          </Button>
+        </span>
+      ) : null}
       <input
         ref={ref}
         type="file"

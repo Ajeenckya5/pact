@@ -35,7 +35,6 @@ export default function CaloriesPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanPhase, setScanPhase] = useState<string | null>(null);
-  const [netReady, setNetReady] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [scan, setScan] = useState<PlateScan | null>(null);
   const [pickedId, setPickedId] = useState<string | null>(null);
@@ -53,21 +52,6 @@ export default function CaloriesPage() {
   const [customCarbs, setCustomCarbs] = useState("");
   const [customFat, setCustomFat] = useState("");
   const [saveCustom, setSaveCustom] = useState(true);
-
-  useEffect(() => {
-    let live = true;
-    void import("@/lib/plate-net")
-      .then((m) => m.preloadFoodNet())
-      .then(() => {
-        if (live) setNetReady(true);
-      })
-      .catch(() => {
-        if (live) setNetReady(false);
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
 
   useEffect(() => {
     const q = query.trim();
@@ -284,8 +268,8 @@ export default function CaloriesPage() {
               <Button tone="ghost" onClick={() => store.repeatLastMeal()}>
                 Repeat last
               </Button>
-              <Button tone="quiet" onClick={() => store.undoLastMeal()}>
-                Undo last
+              <Button tone="quiet" disabled={!store.undoLabel} onClick={() => store.undoLatest()}>
+                {store.undoLabel ?? "Undo last"}
               </Button>
             </>
           ) : null}
@@ -369,6 +353,7 @@ export default function CaloriesPage() {
                 min={20}
                 max={800}
                 inputMode="decimal"
+                label="Portion grams"
                 placeholder="Portion grams"
                 value={scanGrams}
                 onChange={(e) => setScanGrams(e.target.value)}
@@ -405,10 +390,8 @@ export default function CaloriesPage() {
             </div>
           ) : (
             <p className="mt-4 text-xs text-mute">
-              {netReady
-                ? "CLIP (LAION-2B) is cached on this device. The photo is classified here — it is not uploaded."
-                : "First scan downloads CLIP trained on LAION-2B (~150MB, free, no API key) and caches it. After that, scans run on-device."}{" "}
-              Nothing is logged until you confirm.
+              The first photo scan downloads a 150 MB model on Wi-Fi and keeps it on this device. On cellular, Pact asks
+              before that download. Nothing is logged until you confirm a portion.
             </p>
           )}
           <div className="mt-5">
@@ -425,7 +408,8 @@ export default function CaloriesPage() {
 
         <div className="space-y-4 lg:col-span-7">
           <Field
-            placeholder="Search chicken, quinoa, gochujang…"
+            label="Food search"
+            placeholder="Chicken, quinoa, gochujang…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -442,7 +426,8 @@ export default function CaloriesPage() {
             min={1}
             max={2000}
             inputMode="decimal"
-            placeholder="Portion grams (blank = listed serving)"
+            label="Portion grams"
+            placeholder="Blank uses the listed serving"
             value={portion}
             onChange={(e) => setPortion(e.target.value)}
           />
@@ -614,6 +599,7 @@ export default function CaloriesPage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <Field
                 className="sm:col-span-2"
+                label="Food name"
                 placeholder={q || "Food name"}
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
@@ -622,6 +608,7 @@ export default function CaloriesPage() {
                 type="number"
                 min={0}
                 inputMode="decimal"
+                label="Kilocalories"
                 placeholder="kcal"
                 value={customKcal}
                 onChange={(e) => setCustomKcal(e.target.value)}
@@ -630,6 +617,7 @@ export default function CaloriesPage() {
                 type="number"
                 min={0}
                 inputMode="decimal"
+                label="Protein grams"
                 placeholder="Protein g"
                 value={customProtein}
                 onChange={(e) => setCustomProtein(e.target.value)}
@@ -638,6 +626,7 @@ export default function CaloriesPage() {
                 type="number"
                 min={0}
                 inputMode="decimal"
+                label="Carb grams"
                 placeholder="Carbs g"
                 value={customCarbs}
                 onChange={(e) => setCustomCarbs(e.target.value)}
@@ -646,6 +635,7 @@ export default function CaloriesPage() {
                 type="number"
                 min={0}
                 inputMode="decimal"
+                label="Fat grams"
                 placeholder="Fat g"
                 value={customFat}
                 onChange={(e) => setCustomFat(e.target.value)}

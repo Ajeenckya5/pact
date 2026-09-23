@@ -82,6 +82,7 @@ export default function ThreadPage() {
         />
         <Field
           value={text}
+          label="Message"
           placeholder={`Message ${friend.name.split(" ")[0]}`}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

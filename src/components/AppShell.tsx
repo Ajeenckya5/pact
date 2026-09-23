@@ -1,9 +1,9 @@
 "use client";
 
 import { JumpPalette } from "@/components/JumpPalette";
+import { PwaRegister } from "@/components/PwaRegister";
 import { Onboard } from "@/components/Onboard";
 import { ToastHost } from "@/components/Providers";
-import { USER } from "@/lib/data";
 import { pactScore, usePact } from "@/lib/store";
 import { useLiveBody } from "@/lib/wearable-live-context";
 import { cn } from "@/lib/cn";
@@ -19,7 +19,6 @@ import {
   MessageCircle,
   Moon,
   Navigation,
-  Radio,
   Shield,
   ChefHat,
   ShoppingBag,
@@ -33,31 +32,33 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 const NAV = [
-  { href: "/", label: "Overview", icon: LayoutGrid, group: "Live" },
-  { href: "/live", label: "Track", icon: Navigation, group: "Live" },
-  { href: "/sleep", label: "Sleep", icon: Moon, group: "Body" },
-  { href: "/calories", label: "Calories", icon: Utensils, group: "Body" },
-  { href: "/water", label: "Water", icon: Droplets, group: "Body" },
-  { href: "/workouts", label: "Workouts", icon: Dumbbell, group: "Body" },
-  { href: "/coach", label: "Coach", icon: Bot, group: "Body" },
-  { href: "/fuel", label: "Market", icon: ShoppingBag, group: "Fuel" },
-  { href: "/recipes", label: "Recipes", icon: ChefHat, group: "Fuel" },
-  { href: "/map", label: "Places", icon: MapPin, group: "World" },
-  { href: "/strava", label: "Strava", icon: Activity, group: "World" },
-  { href: "/wearables", label: "Wearables", icon: Watch, group: "World" },
-  { href: "/friends", label: "Friends", icon: Users, group: "People" },
-  { href: "/chat", label: "Chat", icon: MessageCircle, group: "People" },
-  { href: "/community", label: "Community", icon: Radio, group: "People" },
-  { href: "/privacy", label: "Privacy", icon: Shield, group: "Trust" },
-  { href: "/faq", label: "FAQ", icon: HelpCircle, group: "Trust" },
+  { href: "/", label: "Today", icon: LayoutGrid, group: "Pact" },
+  { href: "/log", label: "Log", icon: Droplets, group: "Pact" },
+  { href: "/workouts", label: "Train", icon: Dumbbell, group: "Pact" },
+  { href: "/people", label: "People", icon: Users, group: "Pact" },
+  { href: "/you", label: "You", icon: Shield, group: "Pact" },
+  { href: "/live", label: "Track", icon: Navigation, group: "More" },
+  { href: "/sleep", label: "Sleep", icon: Moon, group: "More" },
+  { href: "/calories", label: "Food", icon: Utensils, group: "More" },
+  { href: "/water", label: "Water", icon: Droplets, group: "More" },
+  { href: "/coach", label: "Coach", icon: Bot, group: "More" },
+  { href: "/fuel", label: "Market", icon: ShoppingBag, group: "More" },
+  { href: "/recipes", label: "Recipes", icon: ChefHat, group: "More" },
+  { href: "/map", label: "Places", icon: MapPin, group: "More" },
+  { href: "/strava", label: "Strava", icon: Activity, group: "More" },
+  { href: "/wearables", label: "Devices", icon: Watch, group: "More" },
+  { href: "/friends", label: "Friends", icon: Users, group: "More" },
+  { href: "/chat", label: "Chat", icon: MessageCircle, group: "More" },
+  { href: "/privacy", label: "Privacy", icon: Shield, group: "More" },
+  { href: "/faq", label: "FAQ", icon: HelpCircle, group: "More" },
 ];
 
 const MOBILE = [
-  { href: "/", label: "Home", icon: LayoutGrid },
-  { href: "/calories", label: "Fuel", icon: Utensils },
+  { href: "/", label: "Today", icon: LayoutGrid },
+  { href: "/log", label: "Log", icon: Droplets },
   { href: "/workouts", label: "Train", icon: Dumbbell },
-  { href: "/community", label: "Circle", icon: Radio },
-  { href: "/chat", label: "Chat", icon: MessageCircle },
+  { href: "/people", label: "People", icon: Users },
+  { href: "/you", label: "You", icon: Shield },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -70,12 +71,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     (n, thread) => n + thread.filter((m) => m.from !== "me").length,
     0,
   );
-
-  useEffect(() => {
-    void import("@/lib/plate-net")
-      .then((m) => m.preloadFoodNet())
-      .catch(() => {});
-  }, []);
 
   return (
     <div className="min-h-dvh bg-ink text-cream">
@@ -90,14 +85,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/" className="font-display text-2xl tracking-tight" onClick={() => setOpen(false)}>
             PACT
           </Link>
-          <button className="lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu">
+          <button className="inline-flex min-h-11 min-w-11 items-center justify-center lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu">
             <X className="h-5 w-5" />
           </button>
         </div>
         <div className="mx-4 mb-4 rounded-2xl border border-line bg-card px-4 py-3">
-          <p className="text-sm font-medium">{USER.name}</p>
+          <p className="text-sm font-medium">{store.profile.name.trim() || "You"}</p>
           <p className="text-xs text-mute">
-            @{USER.handle} · {USER.streak} day streak
+            @{store.profile.handle || "you"} · {store.streak} day streak
+            {store.demo ? " · sample" : ""}
           </p>
           <p className="mt-2 font-mono text-sm text-acid">Pact score {score}</p>
         </div>
@@ -115,7 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       href={item.href}
                       onClick={() => setOpen(false)}
                       className={cn(
-                        "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
+                        "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
                         active ? "bg-acid/15 text-acid" : "text-mute hover:bg-white/5 hover:text-cream",
                       )}
                     >
@@ -145,13 +141,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="relative lg:pl-[272px]">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line/70 bg-ink/75 px-4 py-3 backdrop-blur-xl lg:px-8">
-          <button className="rounded-full p-2 hover:bg-white/5 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
+          <button className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-white/5 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </button>
           <p className="hidden text-sm text-mute lg:block">
+            {store.demo ? "Sample data · " : ""}
             {body.ble.links
               ? `BT ${body.ble.name ?? "device"} · Recovery ${body.recovery} · Strain ${body.strain.toFixed(1)}${body.hr != null ? ` · ${body.hr} bpm` : ""}`
-              : `Recovery ${body.recovery} · Strain ${body.strain.toFixed(1)} · Pact log · no wearable`}
+              : store.demo
+                ? `Recovery ${body.recovery} · Strain ${body.strain.toFixed(1)}`
+                : "No wearable connected"}
           </p>
           <div className="ml-auto flex items-center gap-3">
             <button
@@ -166,6 +165,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        {store.demo ? (
+          <p className="bg-[repeating-linear-gradient(135deg,rgba(214,255,63,0.22)_0_10px,transparent_10px_20px)] px-4 py-2 text-center text-xs font-semibold tracking-wide text-acid">
+            Sample data
+          </p>
+        ) : null}
         <main id="main" className="px-4 pb-28 pt-6 lg:px-8 lg:pb-12">
           {children}
         </main>
@@ -180,7 +184,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 py-1 text-[10px]",
+                "flex min-h-11 flex-col items-center justify-center gap-1 py-1 text-[10px]",
                 active ? "text-acid" : "text-mute",
               )}
             >
@@ -190,6 +194,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
+      <PwaRegister />
       <ToastHost />
       <Onboard />
       <JumpPalette />
@@ -212,6 +217,7 @@ function PrefsFx() {
   const { prefs } = usePact();
   useEffect(() => {
     document.documentElement.classList.toggle("reduce-motion", prefs.reducedMotion);
-  }, [prefs.reducedMotion]);
+    document.documentElement.classList.toggle("light", prefs.theme === "light");
+  }, [prefs.reducedMotion, prefs.theme]);
   return null;
 }

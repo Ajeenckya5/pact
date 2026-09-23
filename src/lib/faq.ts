@@ -46,7 +46,7 @@ export const FAQS: FaqItem[] = [
     id: "pact-demo",
     category: "Pact",
     q: "Is this a live account?",
-    a: "You're Alex Rivera in a local demo. State sits in this browser under pact.v1. There is no login vendor and no paid API behind the desk.",
+    a: "A fresh install is empty. Your name, logs, and pacts stay on this device. Sample data is optional and labeled. There is no login.",
   },
   {
     id: "pact-data",
@@ -214,7 +214,7 @@ export const FAQS: FaqItem[] = [
     id: "wo-today",
     category: "Workouts",
     q: "How does today's session pick work?",
-    a: "On-device scoring over the real library and common logs — not a canned squat card. It uses the Bluetooth device you paired (HR, cadence, power, HRV when the strap sends it) plus your Pact log, this week's sessions, protein left, favorites, your goal, and Open-Meteo. Unpaired catalog watches are not invented. Coach asks the same function Overview uses, so the pick matches.",
+    a: "Today's session uses the strap you paired (heart rate, cadence, power, and HRV when the strap sends it), your log, this week's sessions, protein left, favorites, your goal, and the weather. Coach uses the same pick as Today.",
   },
   {
     id: "wo-search",
@@ -268,7 +268,7 @@ export const FAQS: FaqItem[] = [
     id: "cir-friends",
     category: "Circle",
     q: "Who is in my circle?",
-    a: "Seed friends (Maya, Jordan, Sam, Riley, Chris) plus anyone you add from contacts. Friends, Chat, and Community share that list. Blocked people drop out.",
+    a: "Friends are people you add from your own contacts. Friends and Chat share that list. Blocked people drop out.",
   },
   {
     id: "cir-chat",
@@ -358,13 +358,13 @@ export const FAQS: FaqItem[] = [
     id: "wr-connect",
     category: "Pact",
     q: "Which wearables can I connect?",
-    a: "On the Android APK: tap Connect Bluetooth device and allow Nearby devices (and Location on older Android). On GitHub Pages or desktop: Chrome or Edge Web Bluetooth. Only the GATT strap you pick streams HR/cadence/power. Apple Watch, Oura, HealthKit, Health Connect, and some WHOOP units do not. Then open Track to record GPS with those live samples.",
+    a: "On the Android app, tap Pair and allow Nearby devices. On the website, Chrome or Edge Web Bluetooth reads the strap you pick. Apple Watch, Oura, and WHOOP fill Today after they write into Apple Health or Health Connect on the phone app. Open Track to record GPS with the live sample.",
   },
   {
     id: "pact-apk-pages",
     category: "Pact",
     q: "What's the difference between GitHub Pages and the APK?",
-    a: "GitHub Pages is the website (ajeenckya5.github.io/pact) — Chrome can pair BLE in that tab. The APK is a phone app with native Bluetooth and GPS. Same Pact, different container. Sideload Pact-debug.apk from GitHub Releases. WHOOP/Oura/Watch apps still do not dump their private databases into Pact.",
+    a: "The website at ajeenckya5.github.io/pact can pair a strap in Chrome. The Android app adds native Bluetooth and GPS. Watches show up when their health data is in Apple Health or Health Connect.",
   },
   {
     id: "map-osm",

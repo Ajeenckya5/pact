@@ -62,6 +62,17 @@ body {
   color: #8d95a8;
 }
 
+html.light {
+  --background: #f6f1e7;
+  --foreground: #1a1814;
+  --color-ink: #f6f1e7;
+  --color-panel: #fffdf8;
+  --color-card: #fffdf8;
+  --color-line: #ddd4c4;
+  --color-cream: #1a1814;
+  --color-mute: #5c564c;
+}
+
 html.reduce-motion *,
 html.reduce-motion *::before,
 html.reduce-motion *::after {

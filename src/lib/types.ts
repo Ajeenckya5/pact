@@ -10,6 +10,7 @@ export type Prefs = {
   units: Units;
   onboarded: boolean;
   reducedMotion: boolean;
+  theme: "dark" | "light";
 };
 
 export type PlaceKind = "gym" | "grocery";
@@ -213,7 +214,7 @@ export type MealLog = {
   carbs: number;
   fat: number;
   at: string;
-  source: "ai" | "manual" | "recipe";
+  source: "ai" | "manual" | "recipe" | "demo";
   photo?: string;
 };
 

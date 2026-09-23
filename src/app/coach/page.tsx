@@ -12,7 +12,6 @@ import {
 import { mealTotals, useGoal, usePact } from "@/lib/store";
 import { todayLogs } from "@/lib/training";
 import type { CoachMessage } from "@/lib/types";
-import { USER } from "@/lib/data";
 import { clock } from "@/lib/format";
 import { useLiveWeather } from "@/lib/use-live";
 import { liveSourceLine } from "@/lib/wearable-live";
@@ -24,7 +23,7 @@ export default function CoachPage() {
   const store = usePact();
   const goal = useGoal();
   const totals = mealTotals(store.meals);
-  const { weather } = useLiveWeather();
+  const { weather, error: weatherError } = useLiveWeather();
   const { body } = useLiveBody();
   const [text, setText] = useState("");
   const [deskQuery, setDeskQuery] = useState("");
@@ -33,7 +32,7 @@ export default function CoachPage() {
 
   const ctx = useMemo(
     () => ({
-      name: USER.name,
+      name: store.profile.name.trim() || "You",
       goal,
       recovery: body.recovery,
       strain: body.strain,
@@ -58,6 +57,7 @@ export default function CoachPage() {
       body,
       totals.protein,
       totals.kcal,
+      store.profile.name,
       store.waterMl,
       store.workoutLogs,
       store.favoriteWorkouts,
@@ -102,8 +102,8 @@ export default function CoachPage() {
           <Eyebrow>Coach — not FAQ, not friend chat</Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight">Train. Eat. Don&apos;t negotiate.</h1>
           <p className="mt-3 max-w-2xl text-mute">
-            Coach scores today&apos;s session from the Bluetooth device you paired (if any), your Pact log, protein, and
-            weather — same pick as Overview. Unpaired watches are not invented.
+            Coach scores today&apos;s session from the strap you paired, your log, protein left, and the weather. The
+            pick matches Overview.
             Name a lift or a food and it will gate the answer on those numbers. App how-tos live in{" "}
             <Link href="/faq" className="text-acid">
               FAQ
@@ -114,6 +114,7 @@ export default function CoachPage() {
             </Link>
             .
           </p>
+          {weatherError ? <p className="mt-2 text-sm text-heat">Weather did not load. Coach still uses your log.</p> : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Chip active={tab === "chat"} onClick={() => setTab("chat")}>
@@ -128,7 +129,8 @@ export default function CoachPage() {
       {tab === "desk" ? (
         <div className="space-y-4">
           <Field
-            placeholder="Browse the corpus — chicken, squat, PPL, sore knees…"
+            label="Ask the coach"
+            placeholder="Chicken, squat, sore knees…"
             value={deskQuery}
             onChange={(e) => setDeskQuery(e.target.value)}
           />
@@ -188,6 +190,8 @@ export default function CoachPage() {
             </div>
             <div className="mt-4 flex items-center gap-2">
               <Field
+                label="Question"
+                className="flex-1"
                 value={text}
                 placeholder="Ask the coach — not the FAQ"
                 onChange={(e) => setText(e.target.value)}

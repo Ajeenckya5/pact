@@ -3,6 +3,7 @@ import {
   pactRecipesToKitchen,
   type KitchenRecipe,
 } from "./kitchen";
+import { fetchJson } from "./http";
 import { muscleFromWger, type MuscleId } from "./muscles";
 
 const UA = "PactAccountability/1.0 (local fitness app; OSM/OFF/Open-Meteo)";
@@ -78,9 +79,9 @@ export type GeoHit = {
   country: string;
 };
 
-async function getJson(url: string, init?: RequestInit) {
+async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   const browser = typeof window !== "undefined";
-  const res = await fetch(url, {
+  const result = await fetchJson<T>(url, {
     ...init,
     cache: "no-store",
     headers: {
@@ -88,10 +89,10 @@ async function getJson(url: string, init?: RequestInit) {
       ...(browser ? {} : { "User-Agent": UA }),
       ...(init?.headers ?? {}),
     },
-    signal: init?.signal ?? AbortSignal.timeout(24_000),
+    timeoutMs: 8_000,
   });
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
-  return res.json() as Promise<unknown>;
+  if (!result.ok) throw new Error(result.error.message);
+  return result.data;
 }
 
 export function weatherLabel(code: number) {
@@ -170,19 +171,14 @@ export function fetchPlaces(lat: number, lng: number, kind: "all" | "gym" | "gro
 }
 
 async function loadPlaces(lat: number, lng: number, kind: "all" | "gym" | "grocery"): Promise<LivePlace[]> {
+  if (kind === "grocery") return [];
   const r = 6000;
   const gym =
     `nwr["leisure"="fitness_centre"](around:${r},${lat},${lng});` +
     `nwr["leisure"="sports_centre"](around:${r},${lat},${lng});` +
     `nwr["leisure"="fitness_station"](around:${r},${lat},${lng});` +
     `nwr["amenity"="gym"](around:${r},${lat},${lng});`;
-  const grocery =
-    `nwr["shop"="supermarket"](around:${r},${lat},${lng});` +
-    `nwr["shop"="grocery"](around:${r},${lat},${lng});` +
-    `nwr["shop"="greengrocer"](around:${r},${lat},${lng});` +
-    `nwr["shop"="organic"](around:${r},${lat},${lng});` +
-    `nwr["shop"="convenience"](around:${r},${lat},${lng});`;
-  const inner = kind === "gym" ? gym : kind === "grocery" ? grocery : gym + grocery;
+  const inner = gym;
   const query = `[out:json][timeout:22];(${inner});out center 48;`;
 
   const endpoints = [
@@ -251,7 +247,7 @@ async function loadPlaces(lat: number, lng: number, kind: "all" | "gym" | "groce
 export async function fetchFoods(q: string): Promise<LiveFood[]> {
   try {
     const data = (await getJson(
-      `https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=12`,
+      `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=12&fields=code,product_name,product_name_en,nutriments`,
     )) as {
       hits?: Array<{
         code?: string;
@@ -259,8 +255,14 @@ export async function fetchFoods(q: string): Promise<LiveFood[]> {
         product_name_en?: string;
         nutriments?: Record<string, number | string | undefined>;
       }>;
+      products?: Array<{
+        code?: string;
+        product_name?: string;
+        product_name_en?: string;
+        nutriments?: Record<string, number | string | undefined>;
+      }>;
     };
-    const foods = (data.hits ?? [])
+    const foods = (data.products ?? data.hits ?? [])
       .map((p) => {
         const name = p.product_name || p.product_name_en;
         if (!name) return null;
@@ -541,25 +543,16 @@ export async function geocode(q: string): Promise<GeoHit[]> {
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const roundedLat = Math.round(lat * 100) / 100;
+  const roundedLng = Math.round(lng * 100) / 100;
   try {
     const data = (await getJson(
-      `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lng}&language=en&format=json`,
-    )) as {
-      results?: Array<{ name?: string; admin1?: string; country?: string }>;
-    };
-    const r = data.results?.[0];
-    if (r) return [r.name, r.admin1, r.country].filter(Boolean).join(", ");
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${roundedLat}&longitude=${roundedLng}&localityLanguage=en`,
+    )) as { city?: string; locality?: string; principalSubdivision?: string; countryName?: string };
+    return [data.city || data.locality, data.principalSubdivision, data.countryName].filter(Boolean).join(", ");
   } catch {
-    /* nominatim fallback */
+    return "";
   }
-  const nom = (await getJson(
-    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2`,
-  )) as { address?: Record<string, string>; display_name?: string };
-  const a = nom.address ?? {};
-  const label = [a.neighbourhood || a.suburb || a.city || a.town || a.village, a.state, a.country]
-    .filter(Boolean)
-    .join(", ");
-  return label || nom.display_name || "Your area";
 }
 
 function num(v: number | string | undefined) {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Geist_Mono, Outfit, Syne } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import { Providers } from "@/components/Providers";
@@ -20,13 +21,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const assetBase = process.env.PACT_BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export const metadata: Metadata = {
-  title: "Pact — accountability, recovered",
-  description:
-    "Wearable-agnostic recovery, AI calories, workouts, friends, maps, groceries, and privacy — a fuller pact than a strain score.",
+  title: { default: "Today", template: "%s · Pact" },
+  description: "Four daily boxes with the people you choose: sleep, protein, water, and training.",
+  applicationName: "Pact",
+  manifest: `${assetBase}/manifest.webmanifest`,
+  icons: { icon: `${assetBase}/icons/icon-192.png`, apple: `${assetBase}/icons/icon-180.png` },
+  appleWebApp: { capable: true, title: "Pact" },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"

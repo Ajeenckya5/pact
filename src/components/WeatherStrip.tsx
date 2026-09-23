@@ -17,7 +17,7 @@ export function WeatherStrip() {
         <Link href="/map" className="text-acid">
           Places
         </Link>{" "}
-        for live weather. Pact will not assume a city.
+        for live weather, or type a city there.
       </Card>
     );
   }

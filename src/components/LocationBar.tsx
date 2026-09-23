@@ -51,6 +51,7 @@ export function LocationBar({ hint }: { hint?: string }) {
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Field
+          label="City or address"
           className="min-w-[220px] flex-1"
           placeholder="City, neighborhood, or address"
           value={q}

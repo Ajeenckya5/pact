@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,13 +16,15 @@ import {
   INGREDIENTS,
   RECIPES,
   SEED_POSTS,
-  USER,
   goalById,
 } from "./data";
 import { combinePactScore } from "./algos";
 import { rankPlate } from "./plate-vision";
 import { mealSlice, matchIngredient, type DietId, type MealTargets } from "./kitchen";
 import { tap } from "./experience";
+import { askPersistentStorage, clearAccount, readAccount, writeAccount } from "./persist";
+import { entriesToday, latestUndo, removedLabel, undoLabel as labelForUndo } from "./undo-log";
+import { pushSip, totalWater, type WaterSip } from "./water-log";
 import { emptyScore, friendFromContact, mergeContacts, seedScore } from "./training";
 import { migrateConnectedWearables } from "./wearable-live";
 import type {
@@ -88,6 +91,11 @@ export type PactState = {
   prefs: Prefs;
   favoriteFoods: string[];
   favoriteWorkouts: string[];
+  schema: number;
+  demo: boolean;
+  profile: { name: string; handle: string };
+  streak: number;
+  waterLog: WaterSip[];
 };
 
 const defaultPrivacy: PrivacySettings = {
@@ -160,7 +168,7 @@ const initial: PactState = {
       carbs: 38,
       fat: 9,
       at: "2026-09-12T16:12:00.000Z",
-      source: "ai",
+      source: "demo",
       photo: FOODS[1].photo,
     },
     {
@@ -172,7 +180,7 @@ const initial: PactState = {
       carbs: 14,
       fat: 24,
       at: "2026-09-12T19:40:00.000Z",
-      source: "manual",
+      source: "demo",
     },
   ],
   customFoods: [],
@@ -251,10 +259,55 @@ const initial: PactState = {
   rhr: 51,
   steps: 9640,
   history: seedHistory(),
-  prefs: { units: "metric", onboarded: false, reducedMotion: false },
+  prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark" },
   favoriteFoods: ["chicken", "yogurt", "rice"],
   favoriteWorkouts: ["lift-squat", "full-body"],
+  schema: 2,
+  demo: true,
+  profile: { name: "Alex Rivera", handle: "alex.pact" },
+  streak: 47,
+  waterLog: [
+    { id: "w1", ml: 1000, at: "2026-09-12T14:00:00.000Z", source: "demo" },
+    { id: "w2", ml: 500, at: "2026-09-12T16:00:00.000Z", source: "demo" },
+    { id: "w3", ml: 350, at: "2026-09-12T18:00:00.000Z", source: "demo" },
+  ],
 };
+
+const sampleAccount: PactState = initial;
+
+function blankAccount(): PactState {
+  return {
+    ...sampleAccount,
+    demo: false,
+    profile: { name: "", handle: "" },
+    streak: 0,
+    stravaConnected: false,
+    waterMl: 0,
+    waterLog: [],
+    meals: [],
+    cart: [],
+    selectedIngredients: [],
+    orders: [],
+    friends: [],
+    workoutLogs: [],
+    groups: [],
+    messages: {},
+    posts: [],
+    checkins: { sleep: false, fuel: false, water: false, move: false },
+    readingMin: 0,
+    recovery: 0,
+    strain: 0,
+    sleepScore: 0,
+    sleepMin: 0,
+    hrv: 0,
+    rhr: 0,
+    steps: 0,
+    history: [],
+    favoriteFoods: [],
+    favoriteWorkouts: [],
+    prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark" },
+  };
+}
 
 type Store = PactState & {
   ready: boolean;
@@ -289,10 +342,20 @@ type Store = PactState & {
   addComment: (postId: string, text: string) => void;
   setPrivacy: (patch: Partial<PrivacySettings>) => void;
   setPrefs: (patch: Partial<Prefs>) => void;
+  setProfile: (patch: Partial<PactState["profile"]>) => void;
+  importAccount: (next: Partial<PactState>) => void;
+  eraseAll: () => void;
   toggleFavoriteFood: (id: string) => void;
   toggleFavoriteWorkout: (id: string) => void;
   repeatLastMeal: () => void;
   undoLastMeal: () => void;
+  undoWater: () => void;
+  undoLatest: () => void;
+  undoLabel: string | null;
+  redo: () => void;
+  canRedo: boolean;
+  loadSample: () => void;
+  leaveSample: () => void;
   setCheckin: (key: keyof PactState["checkins"], v: boolean) => void;
   addReading: (min: number) => void;
   logWorkout: (entry: Omit<WorkoutLog, "id" | "at">) => void;
@@ -326,61 +389,150 @@ type Store = PactState & {
 const Ctx = createContext<Store | null>(null);
 
 export function PactProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PactState>(initial);
+  const [state, setState] = useState<PactState>(() => blankAccount());
   const [ready, setReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<PactState>;
-        // Hydrate from the browser store after mount (localStorage is not available on the server).
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- external store hydration
-        setState((s) => {
-          const parsedGoal = parsed.goal ?? s.goal;
-          return {
-            ...s,
-            ...parsed,
-            history: parsed.history?.length ? parsed.history : s.history,
-            diets: Array.isArray(parsed.diets) ? parsed.diets : s.diets,
-            mealTargets: parsed.mealTargets ?? mealSlice(goalById(parsedGoal)),
-            workoutLogs: parsed.workoutLogs ?? s.workoutLogs,
-            customWorkouts: parsed.customWorkouts ?? s.customWorkouts,
-            contacts: parsed.contacts ?? s.contacts,
-            contactsSyncedAt: parsed.contactsSyncedAt ?? s.contactsSyncedAt,
-            groups: parsed.groups ?? s.groups,
-            extraFriends: parsed.extraFriends ?? s.extraFriends,
-            customFoods: parsed.customFoods ?? s.customFoods,
-            coachMessages: parsed.coachMessages ?? s.coachMessages,
-            prefs: { ...s.prefs, ...(parsed.prefs ?? {}) },
-            favoriteFoods: parsed.favoriteFoods ?? s.favoriteFoods,
-            favoriteWorkouts: parsed.favoriteWorkouts ?? s.favoriteWorkouts,
-            connectedWearables: migrateConnectedWearables(parsed.connectedWearables),
-          };
-        });
+    let alive = true;
+    void (async () => {
+      try {
+        const parsed = (await readAccount()) as Partial<PactState> | null;
+        if (alive && parsed?.schema === 2) {
+          setState((s) => {
+            const parsedGoal = parsed.goal ?? s.goal;
+            return {
+              ...s,
+              ...parsed,
+              history: parsed.history?.length ? parsed.history : s.history,
+              diets: Array.isArray(parsed.diets) ? parsed.diets : s.diets,
+              mealTargets: parsed.mealTargets ?? mealSlice(goalById(parsedGoal)),
+              workoutLogs: parsed.workoutLogs ?? s.workoutLogs,
+              customWorkouts: parsed.customWorkouts ?? s.customWorkouts,
+              contacts: parsed.contacts ?? s.contacts,
+              contactsSyncedAt: parsed.contactsSyncedAt ?? s.contactsSyncedAt,
+              groups: parsed.groups ?? s.groups,
+              extraFriends: parsed.extraFriends ?? s.extraFriends,
+              customFoods: parsed.customFoods ?? s.customFoods,
+              coachMessages: parsed.coachMessages ?? s.coachMessages,
+              prefs: { ...s.prefs, ...(parsed.prefs ?? {}) },
+              favoriteFoods: parsed.favoriteFoods ?? s.favoriteFoods,
+              favoriteWorkouts: parsed.favoriteWorkouts ?? s.favoriteWorkouts,
+              connectedWearables: migrateConnectedWearables(parsed.connectedWearables),
+            };
+          });
+        }
+      } catch {
+        /* empty account */
       }
-    } catch {
-      /* demo store */
-    }
-    setReady(true);
+      if (!alive) return;
+      setReady(true);
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
     if (!ready) return;
     localStorage.setItem(KEY, JSON.stringify(state));
+    void writeAccount(state);
   }, [state, ready]);
 
-  const flash = useCallback((msg: string) => {
+  const toastTimer = useRef<number | null>(null);
+  const redoRef = useRef<((s: PactState) => PactState) | null>(null);
+  const redoTimer = useRef<number | null>(null);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const flash = useCallback((msg: string, ms = 2400) => {
     setToast(msg);
-    window.setTimeout(() => setToast(null), 2400);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), ms);
   }, []);
 
   const update = useCallback((fn: (s: PactState) => PactState) => {
     setState(fn);
   }, []);
 
+  const offerRedo = useCallback((restore: (s: PactState) => PactState) => {
+    redoRef.current = restore;
+    setCanRedo(true);
+    if (redoTimer.current) window.clearTimeout(redoTimer.current);
+    redoTimer.current = window.setTimeout(() => {
+      redoRef.current = null;
+      setCanRedo(false);
+    }, 6000);
+  }, []);
+
+  const redo = useCallback(() => {
+    const restore = redoRef.current;
+    if (!restore) return;
+    redoRef.current = null;
+    setCanRedo(false);
+    if (redoTimer.current) window.clearTimeout(redoTimer.current);
+    update(restore);
+    flash("Restored");
+  }, [flash, update]);
+
   const api = useMemo<Store>(() => {
+    const undoLatest = () => {
+      const last = latestUndo(entriesToday(state));
+      if (!last) {
+        flash("Nothing to undo");
+        return;
+      }
+      const removed = removedLabel(last);
+      if (last.kind === "water") {
+        const sip = (state.waterLog ?? []).find((row) => row.id === last.id);
+        if (!sip) {
+          flash("Nothing to undo");
+          return;
+        }
+        update((s) => {
+          const waterLog = (s.waterLog ?? []).filter((row) => row.id !== sip.id);
+          const waterMl = totalWater(waterLog);
+          return {
+            ...s,
+            waterLog,
+            waterMl,
+            checkins: { ...s.checkins, water: waterMl >= goalById(s.goal).waterMl },
+          };
+        });
+        offerRedo((current) => {
+          const nextLog = [...(current.waterLog ?? []).filter((row) => row.id !== sip.id), sip];
+          const ml = totalWater(nextLog);
+          return {
+            ...current,
+            waterLog: nextLog,
+            waterMl: ml,
+            checkins: { ...current.checkins, water: ml >= goalById(current.goal).waterMl },
+          };
+        });
+      } else {
+        const meal = state.meals.find((row) => row.id === last.id);
+        if (!meal) {
+          flash("Nothing to undo");
+          return;
+        }
+        update((s) => {
+          const meals = s.meals.filter((row) => row.id !== meal.id);
+          return {
+            ...s,
+            meals,
+            checkins: { ...s.checkins, fuel: mealTotals(meals).protein >= goalById(s.goal).protein },
+          };
+        });
+        offerRedo((current) => {
+          const nextMeals = [meal, ...current.meals.filter((row) => row.id !== meal.id)];
+          return {
+            ...current,
+            meals: nextMeals,
+            checkins: { ...current.checkins, fuel: mealTotals(nextMeals).protein >= goalById(current.goal).protein },
+          };
+        });
+      }
+      flash(`Removed ${removed}`, 6000);
+    };
     return {
       ...state,
       ready,
@@ -406,15 +558,37 @@ export function PactProvider({ children }: { children: ReactNode }) {
         flash(v ? "Strava connected" : "Strava disconnected");
       },
       addWater: (ml) => {
+        if (!ml) return;
         update((s) => {
-          const waterMl = Math.max(0, s.waterMl + ml);
+          const waterLog = pushSip(s.waterLog ?? [], {
+            id: uid(),
+            ml,
+            at: new Date().toISOString(),
+          });
+          const waterMl = totalWater(waterLog);
           const goal = goalById(s.goal).waterMl;
           return {
             ...s,
+            waterLog,
             waterMl,
             checkins: { ...s.checkins, water: waterMl >= goal },
           };
         });
+        askPersistentStorage();
+        flash(ml > 0 ? `Added ${ml} ml` : `Removed ${Math.abs(ml)} ml`);
+      },
+      undoLatest,
+      undoLabel: labelForUndo(latestUndo(entriesToday(state))),
+      redo,
+      canRedo,
+      undoWater: undoLatest,
+      loadSample: () => {
+        update((s) => ({ ...sampleAccount, prefs: { ...sampleAccount.prefs, onboarded: s.prefs.onboarded } }));
+        flash("Sample data on");
+      },
+      leaveSample: () => {
+        update((s) => ({ ...blankAccount(), prefs: { ...blankAccount().prefs, onboarded: true, units: s.prefs.units } }));
+        flash("Sample data off");
       },
       addMeal: (meal) => {
         update((s) => {
@@ -628,9 +802,9 @@ export function PactProvider({ children }: { children: ReactNode }) {
           posts: [
             {
               id: uid(),
-              authorId: USER.id,
-              author: USER.name,
-              handle: USER.handle,
+              authorId: "me",
+              author: s.profile.name.trim() || "You",
+              handle: s.profile.handle || "you",
               text,
               photo,
               at: new Date().toISOString(),
@@ -650,12 +824,29 @@ export function PactProvider({ children }: { children: ReactNode }) {
           ...s,
           posts: s.posts.map((p) =>
             p.id === postId
-              ? { ...p, comments: [...p.comments, { id: uid(), author: USER.name, text }] }
+              ? { ...p, comments: [...p.comments, { id: uid(), author: s.profile.name.trim() || "You", text }] }
               : p,
           ),
         })),
       setPrivacy: (patch) => update((s) => ({ ...s, privacy: { ...s.privacy, ...patch } })),
       setPrefs: (patch) => update((s) => ({ ...s, prefs: { ...s.prefs, ...patch } })),
+      setProfile: (patch) =>
+        update((s) => ({ ...s, demo: false, profile: { ...s.profile, ...patch } })),
+      importAccount: (next) => {
+        update(() => ({
+          ...blankAccount(),
+          ...next,
+          schema: 2,
+          prefs: { ...blankAccount().prefs, ...(next.prefs ?? {}), onboarded: true },
+          profile: { ...blankAccount().profile, ...(next.profile ?? {}) },
+        }));
+        flash("Import restored this device");
+      },
+      eraseAll: () => {
+        update(() => ({ ...blankAccount(), prefs: { ...blankAccount().prefs, onboarded: true } }));
+        void clearAccount();
+        flash("Everything on this device is erased");
+      },
       toggleFavoriteFood: (id) =>
         update((s) => ({
           ...s,
@@ -682,16 +873,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
         flash("Repeated last meal");
         tap();
       },
-      undoLastMeal: () => {
-        update((s) => {
-          if (!s.meals[0]) return s;
-          const meals = s.meals.slice(1);
-          const tot = mealTotals(meals);
-          const g = goalById(s.goal);
-          return { ...s, meals, checkins: { ...s.checkins, fuel: tot.protein >= g.protein } };
-        });
-        flash("Undid last meal");
-      },
+      undoLastMeal: undoLatest,
       setCheckin: (key, v) => {
         update((s) => ({ ...s, checkins: { ...s.checkins, [key]: v } }));
         if (v) tap();
@@ -851,7 +1033,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
         flash("Invite dismissed");
       },
     };
-  }, [state, ready, toast, flash, update]);
+  }, [state, ready, toast, flash, update, offerRedo, redo, canRedo]);
 
   if (!ready) {
     return (

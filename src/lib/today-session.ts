@@ -3,6 +3,7 @@ import { extraWaterForHeat } from "./experience";
 import type { LiveWeather } from "./free-apis";
 import type { Goal, Workout, WorkoutLog, WorkoutPattern } from "./types";
 import { COMMON_WORKOUTS, type CommonWorkout, todayLogs } from "./training";
+import { dedupeLines } from "./water-log";
 
 export type TrainingSlot = "legs" | "push" | "pull" | "cardio" | "recover" | "mixed";
 export type Intensity = "protect" | "easy" | "train" | "push";
@@ -191,7 +192,9 @@ export function intensityOf(input: {
   hrv?: number;
   hr?: number | null;
   rhr?: number;
+  measured?: boolean;
 }): Intensity {
+  if (input.measured === false) return "train";
   const { recovery, strain, sleepScore, sleepMin, hrv, hr, rhr } = input;
   let band: Intensity;
   if (recovery < 34 || sleepScore < 58 || strain >= 18) band = "protect";
@@ -323,6 +326,7 @@ export type SuggestTodayInput = {
   weather: LiveWeather | null;
   trainedToday?: boolean;
   liveNote?: string;
+  measured?: boolean;
 };
 
 export function doseFor(
@@ -349,20 +353,27 @@ export function doseFor(
 export function suggestToday(input: SuggestTodayInput): TodaySuggestion {
   const trainedToday = input.trainedToday ?? todayLogs(input.logs).length > 0;
   const bodyBand = intensityOf(input);
-  const intensity = trainedToday
-    ? input.recovery < 50 || input.strain >= 15
-      ? "protect"
-      : "easy"
-    : bodyBand;
+  const intensity =
+    input.measured === false
+      ? "train"
+      : trainedToday
+        ? input.recovery < 50 || input.strain >= 15
+          ? "protect"
+          : "easy"
+        : bodyBand;
   const wx = weatherGate(input.weather);
   const needed = neededSlot(input.logs, intensity, trainedToday);
   const recent = recentLogs(input.logs, 6);
   const last = recent[0];
   const reasons: string[] = [];
 
-  reasons.push(
-    `Recovery ${input.recovery}, strain ${input.strain.toFixed(1)}, sleep ${input.sleepScore}${input.sleepMin != null ? ` (${Math.round(input.sleepMin / 60)}h ${input.sleepMin % 60}m)` : ""}${input.hrv != null ? `, HRV ${input.hrv}` : ""} → ${intensity}.`,
-  );
+  if (input.measured === false) {
+    reasons.push("No wearable scores yet. Today's pick uses your training log and weather.");
+  } else {
+    reasons.push(
+      `Recovery ${input.recovery}, strain ${input.strain.toFixed(1)}, sleep ${input.sleepScore}${input.sleepMin != null ? ` (${Math.round(input.sleepMin / 60)}h ${input.sleepMin % 60}m)` : ""}${input.hrv != null ? `, HRV ${input.hrv}` : ""} → ${intensity}.`,
+    );
+  }
   if (input.hr != null) {
     reasons.push(
       input.cadence != null || input.power != null
@@ -385,7 +396,11 @@ export function suggestToday(input: SuggestTodayInput): TodaySuggestion {
     reasons.push(`Water ${Math.round(input.waterMl)} / ${input.waterGoal} ml.`);
   }
   reasons.push(...wx.reasons);
-  reasons.push(`${input.goal.name} biases the catalog. Recovery still owns the intensity.`);
+  reasons.push(
+    input.recovery != null
+      ? `${input.goal.name} biases the catalog. Recovery still owns the intensity.`
+      : `${input.goal.name} biases the catalog. Pair a wearable if you want intensity from live HR.`,
+  );
   if (trainedToday) {
     reasons.push("You already logged a session. Anything else is optional and easy.");
   }
@@ -466,7 +481,7 @@ export function suggestToday(input: SuggestTodayInput): TodaySuggestion {
     headline,
     pick: primary.pick,
     alts,
-    reasons,
+    reasons: dedupeLines(reasons).slice(0, 3),
   };
 }
 

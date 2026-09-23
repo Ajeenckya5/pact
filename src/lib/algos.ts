@@ -1,6 +1,6 @@
 /**
  * Documented Pact formulas. Tests in `algos.test.ts` and `plate-vision.test.ts`
- * prove the identities. Nothing here invents a wearable reading or a meal.
+ * prove the identities. Wearable numbers come from a paired device. Meals come from what you log.
  */
 
 export const ATWATER = { protein: 4, carbs: 4, fat: 9 } as const;

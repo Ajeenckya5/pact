@@ -507,6 +507,13 @@ overnight-oats|Overnight oats|Prepared|Aisle|120|5|18|3|200|1 cup|
 chia-pudding|Chia pudding|Prepared|Aisle|140|5|16|7|150|1 cup|
 cheerios|Cheerios|Grain|Dry|367|12|73|7|28|1 cup|
 rice-krispies|Rice Krispies|Grain|Dry|382|7|85|4|33|1 cup|
+poha|Poha|Grain|Dry|350|6|76|6|60|1 plate|flattened rice;pohe
+idli|Idli|Prepared|Aisle|140|4|28|1|40|1 idli|idly
+dal|Dal|Prepared|Aisle|116|8|16|3|200|1 bowl|daal;lentil stew
+egusi|Egusi soup|Prepared|Aisle|180|10|6|14|250|1 bowl|
+jollof|Jollof rice|Prepared|Aisle|160|4|28|4|250|1 plate|
+tteokbokki|Tteokbokki|Prepared|Aisle|180|3|40|1|200|1 serving|rice cakes
+arepa|Arepa|Prepared|Aisle|210|5|36|5|80|1 arepa|
 `.trim();
 
 function parsePantry(raw: string): PantryItem[] {

@@ -9,7 +9,7 @@ import Link from "next/link";
 
 export default function FriendsPage() {
   const store = usePact();
-  const circle = peopleInCircle(store.friends, store.extraFriends);
+  const circle = peopleInCircle(store.friends, store.extraFriends, store.demo);
   const pendingGroups = store.groups.filter((g) => g.pendingIds.includes("me"));
   const waiting = store.contacts.filter((c) => !c.friendId || !store.friends.includes(c.friendId));
 
@@ -88,7 +88,7 @@ export default function FriendsPage() {
           </ul>
         </Card>
       ) : (
-        <p className="text-sm text-mute">No contacts yet. Sync to pull Maya, Priya, and the rest of the dump — or your real phonebook on a supporting browser.</p>
+        <p className="text-sm text-mute">No contacts yet. On a phone that supports the contact picker, sync brings in people you choose.</p>
       )}
 
       <div className="grid gap-3">

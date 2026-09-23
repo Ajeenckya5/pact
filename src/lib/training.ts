@@ -55,17 +55,7 @@ export const WORKOUT_CATEGORIES = [
   "Dance",
 ];
 
-/** Local address-book dump used when the Contact Picker API is missing or cancelled. */
-export const DEVICE_CONTACTS: DeviceContact[] = [
-  { id: "dc-maya", name: "Maya Chen", phone: "+1 415 555 0142", email: "maya@splits.club", friendId: "maya", source: "dump" },
-  { id: "dc-jordan", name: "Jordan Blake", phone: "+1 510 555 0190", email: "j.blake@oak.run", friendId: "jordan", source: "dump" },
-  { id: "dc-priya", name: "Priya Shah", phone: "+1 415 555 0118", email: "priya.shah@gmail.com", handle: "priya.km", source: "dump" },
-  { id: "dc-luis", name: "Luis Ortega", phone: "+1 628 555 0177", email: "luis.ortega@icloud.com", handle: "l.ortega", source: "dump" },
-  { id: "dc-nina", name: "Nina Kowalski", phone: "+1 415 555 0104", email: "nina.k@berkeley.edu", handle: "nina.k", source: "dump" },
-  { id: "dc-devon", name: "Devon Hale", phone: "+1 925 555 0166", email: "devon.hale@pm.me", handle: "devon.hale", source: "dump" },
-  { id: "dc-amira", name: "Amira Hassan", phone: "+1 415 555 0133", email: "amira.h@outlook.com", handle: "amira.h", source: "dump" },
-  { id: "dc-theo", name: "Theo Marin", phone: "+1 650 555 0129", email: "theo.marin@me.com", handle: "theo.m", source: "dump" },
-];
+const DEMO_FRIEND_IDS = new Set(["maya", "jordan", "sam", "riley", "chris"]);
 
 export function dayKey(iso: string) {
   return new Date(iso).toLocaleDateString("en-CA");
@@ -128,22 +118,23 @@ export function rankedCommon(logs: WorkoutLog[]): Array<CommonWorkout & { times:
   })).sort((a, b) => b.times - a.times || a.title.localeCompare(b.title));
 }
 
-export function peopleInCircle(friendIds: string[], extra: Friend[]): Friend[] {
-  const known = FRIENDS.filter((f) => friendIds.includes(f.id));
+export function peopleInCircle(friendIds: string[], extra: Friend[], demo = false): Friend[] {
+  const ids = demo ? friendIds : friendIds.filter((id) => !DEMO_FRIEND_IDS.has(id));
+  const known = FRIENDS.filter((f) => ids.includes(f.id));
   const seen = new Set(known.map((f) => f.id));
-  return [...known, ...extra.filter((f) => friendIds.includes(f.id) && !seen.has(f.id))];
+  return [...known, ...extra.filter((f) => ids.includes(f.id) && !seen.has(f.id))];
 }
 
 export function personById(id: string, extra: Friend[] = []): Friend | undefined {
   if (id === "me" || id === USER.id) {
     return {
       id: "me",
-      name: USER.name,
-      handle: USER.handle,
-      city: USER.city,
-      recovery: 86,
-      strain: 11.2,
-      streak: USER.streak,
+      name: "You",
+      handle: "you",
+      city: "",
+      recovery: 0,
+      strain: 0,
+      streak: 0,
       pace: "You",
       online: true,
     };
@@ -290,7 +281,7 @@ export function friendFromContact(contact: DeviceContact): Friend {
 
 type PickedContact = { name?: string[]; email?: string[]; tel?: string[] };
 
-export async function readDeviceContacts(): Promise<{ contacts: DeviceContact[]; via: "picker" | "dump" }> {
+export async function readDeviceContacts(): Promise<{ contacts: DeviceContact[]; via: "picker" | "none" }> {
   const nav = navigator as Navigator & {
     contacts?: { select: (props: string[], opts?: { multiple?: boolean }) => Promise<PickedContact[]> };
   };
@@ -317,5 +308,5 @@ export async function readDeviceContacts(): Promise<{ contacts: DeviceContact[];
       /* user cancelled or unsupported properties */
     }
   }
-  return { contacts: DEVICE_CONTACTS, via: "dump" };
+  return { contacts: [], via: "none" };
 }

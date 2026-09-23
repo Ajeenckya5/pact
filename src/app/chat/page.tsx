@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export default function ChatIndexPage() {
   const store = usePact();
-  const threads = peopleInCircle(store.friends, store.extraFriends);
+  const threads = peopleInCircle(store.friends, store.extraFriends, store.demo);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">

@@ -9,6 +9,7 @@ import {
   geocode,
   reverseGeocode,
 } from "@/lib/free-apis";
+import { fetchStatus } from "@/lib/http";
 import { pactRecipesToKitchen } from "@/lib/kitchen";
 
 export async function clientWeather(lat: number, lng: number) {
@@ -30,7 +31,9 @@ export async function clientGeocode(q: string) {
 }
 
 export async function clientReverse(lat: number, lng: number) {
-  return { label: await reverseGeocode(lat, lng) };
+  const roundedLat = Math.round(lat * 100) / 100;
+  const roundedLng = Math.round(lng * 100) / 100;
+  return { label: await reverseGeocode(roundedLat, roundedLng) };
 }
 
 export async function clientExercises(q?: string, id?: string) {
@@ -63,7 +66,7 @@ const FEED_PROBES = [
   {
     id: "overpass",
     name: "OpenStreetMap Overpass",
-    use: "Gyms and grocery stores",
+    use: "Gyms near you",
     url: "https://overpass-api.de",
     key: false,
     probe: "https://overpass-api.de/api/status",
@@ -74,7 +77,7 @@ const FEED_PROBES = [
     use: "Calorie search",
     url: "https://world.openfoodfacts.org",
     key: false,
-    probe: "https://search.openfoodfacts.org/search?q=oats&page_size=1",
+    probe: "https://world.openfoodfacts.org/api/v2/search?search_terms=oats&page_size=1",
   },
   {
     id: "mealdb",
@@ -121,15 +124,11 @@ export type ClientFeed = {
 };
 
 export async function clientFeeds(): Promise<{ feeds: ClientFeed[] }> {
-  const feeds = await Promise.all(
+      const feeds = await Promise.all(
     FEED_PROBES.map(async (feed) => {
       const started = Date.now();
-      try {
-        const res = await fetch(feed.probe, { cache: "no-store", signal: AbortSignal.timeout(8000) });
-        return { id: feed.id, name: feed.name, use: feed.use, url: feed.url, key: feed.key, ok: res.ok, ms: Date.now() - started };
-      } catch {
-        return { id: feed.id, name: feed.name, use: feed.use, url: feed.url, key: feed.key, ok: false, ms: Date.now() - started };
-      }
+      const ok = await fetchStatus(feed.probe);
+      return { id: feed.id, name: feed.name, use: feed.use, url: feed.url, key: feed.key, ok, ms: Date.now() - started };
     }),
   );
   return { feeds };

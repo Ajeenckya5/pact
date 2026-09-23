@@ -34,7 +34,7 @@ export function WearableLiveStrip() {
                     return `${l.name}${bits.length ? ` ${bits.join(" · ")}` : " · listening"}`;
                   })
                   .join(" · ")
-              : "Pair a strap, bike, or cadence sensor. Recovery, strain, and sleep stay on your Pact log until that device sends them — Pact does not invent WHOOP, Oura, or Watch streams."}
+              : "Pair a strap, bike, or cadence sensor. Heart rate shows up here after it connects."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

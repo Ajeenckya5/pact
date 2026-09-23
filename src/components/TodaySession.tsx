@@ -46,13 +46,15 @@ export function TodaySession() {
         favoriteWorkouts: store.favoriteWorkouts,
         weather: wx.weather,
         trainedToday: trained.length > 0,
-        liveNote: liveSourceLine(body),
+        liveNote: store.demo ? liveSourceLine(body) : undefined,
+        measured: store.demo || body.ble.links > 0,
       }),
     [
       body,
       store.workoutLogs,
       store.favoriteWorkouts,
       store.waterMl,
+      store.demo,
       goal,
       wx.weather,
       trained.length,
@@ -70,8 +72,6 @@ export function TodaySession() {
       workoutId: pick.id,
     });
   }
-
-  const proteinLeft = Math.max(0, Math.round(goal.protein - totals.protein));
 
   return (
     <Card className="p-6">
@@ -106,7 +106,6 @@ export function TodaySession() {
         {suggestion.reasons.map((r) => (
           <li key={r}>· {r}</li>
         ))}
-        {proteinLeft > 0 ? <li>· Still {proteinLeft}g protein short — eat either side of the session.</li> : null}
       </ul>
 
       <div className="mt-5 flex flex-wrap gap-2">

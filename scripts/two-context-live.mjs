@@ -157,7 +157,7 @@ try {
     localBoxes: document.body.innerText.includes("0/4 boxes"),
     partner: document.querySelector('[data-partner-box="sleep"]')?.textContent?.replace(/\s+/g, " ").trim() ?? "",
   }));
-  const socketPrefix = process.env.PACT_SOCKET_PREFIX ?? "wss://pact-api.ajeenckya.workers.dev/pacts/";
+  const socketPrefix = process.env.PACT_SOCKET_PREFIX ?? "wss://pact-api.ajeenckyam8.workers.dev/pacts/";
   if (proof.messages < 1) throw new Error(`no socket frame: ${JSON.stringify(proof)}`);
   if (!proof.urls.some((item) => item.startsWith(socketPrefix))) throw new Error(`socket was not the worker: ${proof.urls.join(" ")}`);
   if (proof.urls.some((item) => item.includes("/pacts/") && (item.includes("x-pact-sig") || item.includes("?")))) {
@@ -236,7 +236,7 @@ async function readStoredEnvelopes() {
   pkcs8.set(seed, prefix.length);
   const key = await crypto.subtle.importKey("pkcs8", pkcs8, { name: "Ed25519" }, false, ["sign"]);
   const sigBytes = new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, key, new TextEncoder().encode(canon)));
-  const origin = "https://pact-api.ajeenckya.workers.dev";
+  const origin = "https://pact-api.ajeenckyam8.workers.dev";
   const response = await fetch(`${origin}${path}?viewer=${encodeURIComponent(keys.pk)}`, {
     headers: {
       "X-Pact-Pk": keys.pk,

@@ -59,8 +59,8 @@ describe("socket challenge", () => {
     assert.equal(originAllowed("https://ajeenckya5.github.io"), "https://ajeenckya5.github.io");
     assert.equal(originAllowed("http://127.0.0.1:3010"), "http://127.0.0.1:3010");
     assert.equal(originAllowed("https://evil.example"), "");
-    const url = new URL("wss://pact-api.ajeenckya.workers.dev/pacts/p1?x-pact-sig=abc");
+    const url = new URL("wss://pact-api.ajeenckyam8.workers.dev/pacts/p1?x-pact-sig=abc");
     assert.equal(url.searchParams.get("x-pact-sig"), "abc");
-    assert.equal(new URL("wss://pact-api.ajeenckya.workers.dev/pacts/p1").search, "");
+    assert.equal(new URL("wss://pact-api.ajeenckyam8.workers.dev/pacts/p1").search, "");
   });
 });

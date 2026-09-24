@@ -10,6 +10,45 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const ALLOWED_HOSTS = new Set([
+  "example.test",
+  "localhost",
+  "127.0.0.1",
+  "pact-api.ajeenckya.workers.dev",
+  "pact-aj.pages.dev",
+  "ajeenckya5.github.io",
+  "world.openfoodfacts.org",
+  "api.open-meteo.com",
+  "air-quality-api.open-meteo.com",
+  "geocoding-api.open-meteo.com",
+  "overpass-api.de",
+  "overpass.kumi.systems",
+  "wger.de",
+  "api.bigdatacloud.net",
+  "tile.openstreetmap.org",
+  "tiles.openfreemap.org",
+  "i.ytimg.com",
+  "www.youtube.com",
+  "images.unsplash.com",
+  "api.github.com",
+]);
+
+/** Same-origin paths, or https to a host this app actually calls. */
+export function allowedRequestUrl(input: string): string | null {
+  if (input.startsWith("/") && !input.startsWith("//")) return input;
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return null;
+  }
+  if (url.username || url.password) return null;
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (url.protocol === "http:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") return null;
+  if (!ALLOWED_HOSTS.has(url.hostname)) return null;
+  return url.toString();
+}
+
 async function once<T>(url: string, init: FetchJsonInit | undefined, timeoutMs: number): Promise<FetchResult<T>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -22,8 +61,13 @@ async function once<T>(url: string, init: FetchJsonInit | undefined, timeoutMs: 
     if (parent.aborted) controller.abort();
     else parent.addEventListener("abort", () => controller.abort(), { once: true });
   }
+  const target = allowedRequestUrl(url);
+  if (!target) {
+    clearTimeout(timer);
+    return { ok: false, error: { kind: "network", message: "blocked url" } };
+  }
   try {
-    const res = await fetch(url, { ...rest, signal: controller.signal });
+    const res = await fetch(target, { ...rest, signal: controller.signal });
     if (!res.ok) {
       return { ok: false, error: { kind: "http", status: res.status, message: `${res.status} ${url}` } };
     }
@@ -53,8 +97,13 @@ async function once<T>(url: string, init: FetchJsonInit | undefined, timeoutMs: 
 export async function fetchStatus(url: string, timeoutMs = 8_000): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const target = allowedRequestUrl(url);
+  if (!target) {
+    clearTimeout(timer);
+    return false;
+  }
   try {
-    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+    const res = await fetch(target, { cache: "no-store", signal: controller.signal });
     return res.ok;
   } catch {
     return false;
@@ -92,7 +141,9 @@ export async function forward(request: Request, url: string) {
   }
   const method = request.method;
   const body = method === "GET" || method === "HEAD" ? undefined : await request.arrayBuffer();
-  const res = await fetch(url, { method, headers, body, cache: "no-store" });
+  const target = allowedRequestUrl(url);
+  if (!target) return new Response("blocked url", { status: 400 });
+  const res = await fetch(target, { method, headers, body, cache: "no-store" });
   const out = new Headers();
   const type = res.headers.get("content-type");
   if (type) out.set("content-type", type);

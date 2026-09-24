@@ -14,6 +14,10 @@ export type ReplayCache = {
   add(sig: string): void | Promise<void>;
 };
 
+export function socketTimedOut(state: SocketAuth, now: number) {
+  return !state.authed && now - state.openedAt >= AUTH_MS;
+}
+
 export function beginSocket(now: number): SocketAuth {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   let bin = "";
@@ -30,7 +34,7 @@ export async function consumeSocketAuth(
   pactId: string,
 ) {
   if (state.authed) return "rejected" as const;
-  if (now - state.openedAt > AUTH_MS) return "timeout" as const;
+  if (socketTimedOut(state, now)) return "timeout" as const;
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

@@ -210,28 +210,73 @@ export default function OverviewPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {pactBits.map((bit) => {
           const Icon = bit.icon;
+          const partial =
+            !bit.done &&
+            ((bit.key === "fuel" && totals.protein > 0) || (bit.key === "water" && store.waterMl > 0));
+          const state = bit.done ? "Done" : partial ? "Partial" : "Open";
+          const quick =
+            bit.key === "water"
+              ? { label: "+250 ml", kind: "button" as const }
+              : bit.key === "sleep"
+                ? { label: "Log 7h+", kind: "button" as const }
+                : bit.key === "move"
+                  ? { label: "Log a walk", kind: "button" as const }
+                  : { label: "Log food", kind: "link" as const };
           return (
-            <button
+            <div
               key={bit.key}
-              onClick={() => store.setCheckin(bit.key, !store.checkins[bit.key])}
-              className="rounded-3xl border border-line bg-card p-5 text-left transition hover:border-acid/40"
+              className={`rounded-[20px] border bg-card p-4 ${bit.done ? "border-line" : "border-acid/50"}`}
             >
-              <div className="flex items-center justify-between">
-                <Icon className="h-4 w-4 text-mute" />
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full ${bit.done ? "bg-acid text-ink" : "border border-line"}`}
-                >
-                  {bit.done ? <Check className="h-3.5 w-3.5" /> : null}
+              <button
+                type="button"
+                onClick={() => store.setCheckin(bit.key, !store.checkins[bit.key])}
+                className="w-full text-left"
+              >
+                <span className="flex items-center justify-between">
+                  <Icon className="h-4 w-4 text-mute" aria-hidden />
+                  <span
+                    className={`flex h-8 w-8 items-center justify-center rounded-full ${bit.done ? "bg-done text-ink" : partial ? "bg-gold text-ink" : "bg-ink text-cream"}`}
+                  >
+                    {bit.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                  </span>
                 </span>
-              </div>
-              <p className="mt-6 text-sm text-mute">Today&apos;s pact</p>
-              <p className="text-lg font-medium">{bit.label}</p>
-            </button>
+                <span className="mt-4 block text-sm text-mute">Today&apos;s pact</span>
+                <span className="block font-display text-xl">{bit.label}</span>
+                <span className="mt-1 block text-xs text-mute">{state}</span>
+              </button>
+              {bit.done ? null : quick.kind === "link" ? (
+                <Link href="/calories" className="mt-3 inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink">
+                  {quick.label}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-3 inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink"
+                  onClick={() => {
+                    if (bit.key === "water") store.addWater(250);
+                    else store.setCheckin(bit.key, true);
+                  }}
+                >
+                  {quick.label}
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
-      {partner.live === "open" ? (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-partner="open">
+      <Card className="p-5" data-partner={partner.live}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Eyebrow>Partner</Eyebrow>
+            <p className="mt-1 font-display text-2xl">{partner.live === "open" ? "Checked in with you" : "No partner yet"}</p>
+            <p className="text-sm text-mute">
+              {partner.checkedAt
+                ? `Last check-in ${new Date(partner.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+                : "No check-in yet"}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {(
             [
               ["sleep", "Sleep"],
@@ -244,14 +289,14 @@ export default function OverviewPage() {
               key={`${key}-${partner.pulse[key] ?? 0}`}
               data-partner-box={key}
               data-partner-done={partner.partner[key] ? "yes" : "no"}
-              className={`rounded-2xl border px-3 py-3 ${partner.pulse[key] ? "pact-pop border-acid" : "border-line"}`}
+              className={`rounded-xl bg-ink px-3 py-3 ${partner.pulse[key] ? "pact-pop" : ""}`}
             >
-              <p className="text-[11px] uppercase tracking-[0.16em] text-mute">Partner {label}</p>
-              <p className="mt-2 font-medium">{partner.partner[key] ? "In" : "—"}</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-mute">{label}</p>
+              <p className="mt-1 text-sm font-medium">{partner.partner[key] ? "In" : "Open"}</p>
             </div>
           ))}
         </div>
-      ) : null}
+      </Card>
 
       <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
         <div>

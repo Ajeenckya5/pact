@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Geist_Mono, Outfit, Syne } from "next/font/google";
+import { Fraunces, Geist_Mono, Nunito } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
 
-const outfit = Outfit({
-  variable: "--font-outfit",
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
+  weight: ["400", "600", "700"],
 });
 
-const syne = Syne({
-  variable: "--font-syne",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+  weight: ["500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#07080a",
+  themeColor: "#f6efe6",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover" as const,
@@ -43,7 +44,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${syne.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${nunito.variable} ${fraunces.variable} ${geistMono.variable} light h-full antialiased`}
     >
       <body className="min-h-full bg-ink font-sans text-cream">
         <a

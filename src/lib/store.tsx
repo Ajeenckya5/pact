@@ -314,7 +314,7 @@ function blankAccount(): PactState {
     history: [],
     favoriteFoods: [],
     favoriteWorkouts: [],
-    prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "dark", seenReceipts: true },
+    prefs: { units: "metric", onboarded: false, reducedMotion: false, theme: "light", seenReceipts: true },
   };
 }
 

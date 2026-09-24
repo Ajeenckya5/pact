@@ -9,7 +9,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-line/80 bg-card/80 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] backdrop-blur-sm",
+        "rounded-[20px] border border-line bg-card shadow-[0_12px_32px_rgba(44,33,24,0.08)]",
         className,
       )}
       {...rest}
@@ -36,8 +36,8 @@ export function Button({
   tone?: "accent" | "ghost" | "danger" | "quiet";
 }) {
   const tones = {
-    accent: "bg-acid text-ink hover:bg-white",
-    ghost: "bg-white/5 text-cream hover:bg-white/10 border border-line",
+    accent: "bg-acid text-ink hover:brightness-95",
+    ghost: "bg-transparent text-cream hover:bg-line border border-line",
     quiet: "bg-transparent text-mute hover:text-cream",
     danger: "bg-heat/15 text-heat hover:bg-heat/25",
   };

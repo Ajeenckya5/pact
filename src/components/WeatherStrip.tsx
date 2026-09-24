@@ -14,7 +14,7 @@ export function WeatherStrip() {
     return (
       <Card className="p-4 text-sm text-mute">
         Set a location on{" "}
-        <Link href="/map" className="text-acid">
+        <Link href="/map" className="text-acid underline underline-offset-2">
           Places
         </Link>{" "}
         for live weather, or type a city there.

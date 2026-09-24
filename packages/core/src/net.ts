@@ -14,7 +14,7 @@ function delay(ms: number) {
 function hostOrigin(hostname: string, protocol: string, port: string): string | null {
   if (protocol === "https:" && (port === "" || port === "443")) {
     if (hostname === "example.test") return "https://example.test";
-    if (hostname === "pact-api.ajeenckya.workers.dev") return "https://pact-api.ajeenckya.workers.dev";
+    if (hostname === "pact-api.ajeenckyam8.workers.dev") return "https://pact-api.ajeenckyam8.workers.dev";
     if (hostname === "pact-aj.pages.dev") return "https://pact-aj.pages.dev";
     if (hostname === "ajeenckya5.github.io") return "https://ajeenckya5.github.io";
     if (hostname === "world.openfoodfacts.org") return "https://world.openfoodfacts.org";
@@ -74,7 +74,7 @@ async function fetchAllowlisted(input: string, init: RequestInit): Promise<Respo
   if (url.username || url.password) return null;
   const https = url.protocol === "https:" && (url.port === "" || url.port === "443");
   if (https && url.hostname === "example.test") return fetch(url.href, init);
-  if (https && url.hostname === "pact-api.ajeenckya.workers.dev") return fetch(url.href, init);
+  if (https && url.hostname === "pact-api.ajeenckyam8.workers.dev") return fetch(url.href, init);
   if (https && url.hostname === "pact-aj.pages.dev") return fetch(url.href, init);
   if (https && url.hostname === "ajeenckya5.github.io") return fetch(url.href, init);
   if (https && url.hostname === "world.openfoodfacts.org") return fetch(url.href, init);

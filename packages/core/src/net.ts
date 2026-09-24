@@ -60,6 +60,50 @@ export function allowedRequestUrl(input: string): string | null {
   return origin + url.pathname + url.search;
 }
 
+/** Fetch only after the host is compared to a fixed origin. */
+async function fetchAllowlisted(input: string, init: RequestInit): Promise<Response | null> {
+  if (input.startsWith("/") && !input.startsWith("//") && !input.includes("://") && !input.includes("\\")) {
+    return fetch(input, init);
+  }
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return null;
+  }
+  if (url.username || url.password) return null;
+  const https = url.protocol === "https:" && (url.port === "" || url.port === "443");
+  if (https && url.hostname === "example.test") return fetch(url.href, init);
+  if (https && url.hostname === "pact-api.ajeenckya.workers.dev") return fetch(url.href, init);
+  if (https && url.hostname === "pact-aj.pages.dev") return fetch(url.href, init);
+  if (https && url.hostname === "ajeenckya5.github.io") return fetch(url.href, init);
+  if (https && url.hostname === "world.openfoodfacts.org") return fetch(url.href, init);
+  if (https && url.hostname === "search.openfoodfacts.org") return fetch(url.href, init);
+  if (https && url.hostname === "api.open-meteo.com") return fetch(url.href, init);
+  if (https && url.hostname === "air-quality-api.open-meteo.com") return fetch(url.href, init);
+  if (https && url.hostname === "geocoding-api.open-meteo.com") return fetch(url.href, init);
+  if (https && url.hostname === "overpass-api.de") return fetch(url.href, init);
+  if (https && url.hostname === "overpass.kumi.systems") return fetch(url.href, init);
+  if (https && url.hostname === "wger.de") return fetch(url.href, init);
+  if (https && url.hostname === "api.bigdatacloud.net") return fetch(url.href, init);
+  if (https && url.hostname === "tile.openstreetmap.org") return fetch(url.href, init);
+  if (https && url.hostname === "tiles.openfreemap.org") return fetch(url.href, init);
+  if (https && url.hostname === "i.ytimg.com") return fetch(url.href, init);
+  if (https && url.hostname === "www.youtube.com") return fetch(url.href, init);
+  if (https && url.hostname === "images.unsplash.com") return fetch(url.href, init);
+  if (https && url.hostname === "api.github.com") return fetch(url.href, init);
+  if (https && url.hostname === "github.com") return fetch(url.href, init);
+  if (url.protocol === "http:" && url.hostname === "127.0.0.1" && url.port === "8788") return fetch(url.href, init);
+  if (url.protocol === "http:" && url.hostname === "localhost" && url.port === "8788") return fetch(url.href, init);
+  if (url.protocol === "http:" && url.hostname === "127.0.0.1" && url.port === "3099") return fetch(url.href, init);
+  if (url.protocol === "http:" && url.hostname === "localhost" && url.port === "3099") return fetch(url.href, init);
+  if (url.protocol === "http:" && url.hostname === "127.0.0.1" && url.port === "3101") return fetch(url.href, init);
+  if (url.protocol === "http:" && url.hostname === "localhost" && url.port === "3101") return fetch(url.href, init);
+  if (url.protocol === "http:" && url.hostname === "127.0.0.1" && (url.port === "" || url.port === "80")) return fetch(url.href, init);
+  if (url.protocol === "http:" && url.hostname === "localhost" && (url.port === "" || url.port === "80")) return fetch(url.href, init);
+  return null;
+}
+
 async function once<T>(url: string, init: FetchJsonInit | undefined, timeoutMs: number): Promise<FetchResult<T>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -72,13 +116,9 @@ async function once<T>(url: string, init: FetchJsonInit | undefined, timeoutMs: 
     if (parent.aborted) controller.abort();
     else parent.addEventListener("abort", () => controller.abort(), { once: true });
   }
-  const target = allowedRequestUrl(url);
-  if (!target) {
-    clearTimeout(timer);
-    return { ok: false, error: { kind: "network", message: "blocked url" } };
-  }
   try {
-    const res = await fetch(target, { ...rest, signal: controller.signal });
+    const res = await fetchAllowlisted(url, { ...rest, signal: controller.signal });
+    if (!res) return { ok: false, error: { kind: "network", message: "blocked url" } };
     if (!res.ok) {
       return { ok: false, error: { kind: "http", status: res.status, message: `${res.status} ${url}` } };
     }
@@ -108,14 +148,9 @@ async function once<T>(url: string, init: FetchJsonInit | undefined, timeoutMs: 
 export async function fetchStatus(url: string, timeoutMs = 8_000): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  const target = allowedRequestUrl(url);
-  if (!target) {
-    clearTimeout(timer);
-    return false;
-  }
   try {
-    const res = await fetch(target, { cache: "no-store", signal: controller.signal });
-    return res.ok;
+    const res = await fetchAllowlisted(url, { cache: "no-store", signal: controller.signal });
+    return Boolean(res?.ok);
   } catch {
     return false;
   } finally {
@@ -152,9 +187,8 @@ export async function forward(request: Request, url: string) {
   }
   const method = request.method;
   const body = method === "GET" || method === "HEAD" ? undefined : await request.arrayBuffer();
-  const target = allowedRequestUrl(url);
-  if (!target) return new Response("blocked url", { status: 400 });
-  const res = await fetch(target, { method, headers, body, cache: "no-store" });
+  const res = await fetchAllowlisted(url, { method, headers, body, cache: "no-store" });
+  if (!res) return new Response("blocked url", { status: 400 });
   const out = new Headers();
   const type = res.headers.get("content-type");
   if (type) out.set("content-type", type);

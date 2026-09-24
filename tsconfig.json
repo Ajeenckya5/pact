@@ -34,5 +34,5 @@
     "**/*.mts",
     "workers/api/src/cloudflare-workers.d.ts"
   ],
-  "exclude": ["node_modules", "apps", "personas"]
+  "exclude": ["node_modules", "apps", "personas", "e2e", "playwright.config.ts"]
 }

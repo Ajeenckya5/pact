@@ -1,5 +1,8 @@
+import { backupCiphertext } from "./backup";
 import { PactRoom } from "./durable";
+import { queryFoods, type FoodDb } from "./foods";
 import { originAllowed } from "./origin";
+import { curatedPlates } from "./plates";
 import { notifyPartners, saveSubscription } from "./push";
 import { signedRequest } from "./room";
 import { applyFlag, countEvent, normalizeFlags, type Flags } from "../../../packages/core/src/wire";
@@ -13,14 +16,7 @@ export type Env = {
     get(key: string, type: "json"): Promise<unknown>;
     put(key: string, value: string): Promise<void>;
   };
-  PACT_DB: {
-    prepare(query: string): {
-      bind(...values: unknown[]): {
-        run(): Promise<unknown>;
-        all<T>(): Promise<{ results: T[] }>;
-      };
-    };
-  };
+  PACT_DB: FoodDb;
   VAPID_PUBLIC?: string;
   VAPID_PRIVATE?: string;
   VAPID_SUBJECT?: string;
@@ -64,6 +60,9 @@ const worker = {
     if (url.pathname === "/events") return withCors(request, await events(request, env));
     if (url.pathname === "/push/vapid") return withCors(request, Response.json({ publicKey: env.VAPID_PUBLIC ?? "" }));
     if (url.pathname === "/push/subscribe") return withCors(request, await subscribe(request, env));
+    if (url.pathname === "/foods") return withCors(request, await foods(request, env));
+    if (url.pathname === "/plates") return withCors(request, Response.json({ plates: curatedPlates() }));
+    if (url.pathname === "/backup") return withCors(request, await backup(request, env));
     const match = url.pathname.match(/^\/pacts\/([^/]+)(?:\/|$)/);
     if (!match) return withCors(request, new Response("Not found", { status: 404 }));
     const pactId = decodeURIComponent(match[1] ?? "");
@@ -165,6 +164,52 @@ async function events(request: Request, env: Env) {
   } catch {
     return new Response("Rejected", { status: 400 });
   }
+}
+
+async function foods(request: Request, env: Env) {
+  if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
+  const url = new URL(request.url);
+  const ids = (url.searchParams.get("ids") ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+  try {
+    const list = await queryFoods(env.PACT_DB, {
+      q: url.searchParams.get("q") ?? "",
+      group: url.searchParams.get("group") ?? "",
+      ids,
+    });
+    return Response.json({ foods: list });
+  } catch (err) {
+    console.error(err);
+    return new Response("Food search unavailable", { status: 503 });
+  }
+}
+
+async function backup(request: Request, env: Env) {
+  if (request.method !== "GET" && request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  const bodyText = request.method === "POST" ? await request.text() : "";
+  const auth = await signedRequest(request, bodyText);
+  if (!auth) return new Response("Unauthorized", { status: 401 });
+  if (request.method === "GET") {
+    const listed = await env.PACT_DB.prepare(
+      "SELECT id, created_at AS createdAt, ct FROM backups WHERE owner_pk = ? ORDER BY created_at DESC LIMIT 30",
+    )
+      .bind(auth.pk)
+      .all<{ id: string; createdAt: number; ct: string }>();
+    return Response.json({ rows: listed.results });
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    return new Response("Rejected", { status: 400 });
+  }
+  const ct = backupCiphertext(parsed);
+  if (!ct) return new Response("Rejected", { status: 400 });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ct));
+  const id = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 32);
+  await env.PACT_DB.prepare("INSERT OR IGNORE INTO backups (id, owner_pk, created_at, ct) VALUES (?, ?, ?, ?)")
+    .bind(id, auth.pk, Date.now(), ct)
+    .run();
+  return Response.json({ ok: true }, { status: 201 });
 }
 
 export default worker;

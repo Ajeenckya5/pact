@@ -1,12 +1,11 @@
 /**
- * App-wide on-device CLIP: same LAION-2B model as Calories, routed to food,
- * grocery, lifts, or gym/store fronts. Photo stays on the device.
+ * Photo scan stays on the device and uses the color matcher.
  */
 import { LIBRARY } from "./catalog";
 import { INGREDIENTS } from "./data";
 import type { Workout } from "./types";
 import type { FoodNetHit, FoodNetInfo } from "./food101-map";
-import { rankPlate, type PlateScan } from "./plate-vision";
+import { analyzePlateImage, type PlateScan } from "./plate-vision";
 import type { MealLog } from "./types";
 
 export type AppPhotoKind = "food" | "grocery" | "workout" | "place-gym" | "place-grocery" | "other";
@@ -105,71 +104,35 @@ export async function identifyPhoto(
   file: File,
   onStatus?: (msg: string) => void,
 ): Promise<AppPhotoScan> {
-  onStatus?.("Loading CLIP (LAION-2B)…");
-  const { classifyPlate, classifyZeroShot, foodNetInfo } = await import("./plate-net");
-  onStatus?.("What's in the photo…");
-  const scene = await classifyZeroShot(file, [...SCENE_LABELS], 5);
-  const kind = kindFromScene(scene[0]?.label ?? "", scene[0]?.score ?? 0);
-  const netModel = foodNetInfo();
-  const hour = new Date().getHours();
-
-  if (kind === "other") {
-    onStatus?.("Checking the pantry anyway…");
-    const net = await classifyPlate(file);
-    if ((net[0]?.score ?? 0) >= 0.12) {
-      const food = rankPlate({ filename: file.name, hour, net, netInfo: netModel });
-      return packFood("food", scene, food, netModel);
-    }
-  }
-
-  if (kind === "food" || kind === "grocery") {
-    onStatus?.("Matching the pantry…");
-    const net = await classifyPlate(file);
-    const food = rankPlate({ filename: file.name, hour, net, netInfo: netModel });
-    return packFood(kind, scene, food, netModel);
-  }
-
-  if (kind === "workout") {
-    onStatus?.("Matching the lift library…");
-    const hits = await classifyZeroShot(file, workoutCandidateLabels(), 5);
-    const workout = hits
-      .map((h) => {
-        const w = workoutForLabel(h.label);
-        if (!w) return null;
-        return { id: w.id, name: w.title, href: `/workouts/${w.id}`, score: h.score };
-      })
-      .filter((row): row is AppWorkoutHit => Boolean(row));
-    const top = workout[0];
+  const name = file.name.toLowerCase();
+  if (/gym|barbell|dumbbell|rack/.test(name)) {
     return {
-      kind: "workout",
-      caption: top?.name ?? hits[0]?.label ?? "Workout",
-      confidence: hits[0]?.score ?? 0,
-      scene,
+      kind: "place-gym",
+      caption: "Gym",
+      confidence: 0.4,
+      scene: [],
       food: null,
-      workout,
-      netModel,
-      proof: [
-        `engine = CLIP ViT-B/32 · ${netModel?.dataset ?? "LAION-2B"}`,
-        `scene “${scene[0]?.label ?? "?"}” p=${((scene[0]?.score ?? 0) * 100).toFixed(0)}%`,
-        ...hits.slice(0, 4).map((h) => `  ${h.label} ${(h.score * 100).toFixed(0)}%`),
-      ],
+      workout: null,
+      netModel: null,
+      proof: ["Filename looks like a gym. The photo stayed on this device."],
     };
   }
-
-  const placeCaption = kind === "place-gym" ? "Gym" : kind === "place-grocery" ? "Grocery store" : "Photo";
-  return {
-    kind,
-    caption: placeCaption,
-    confidence: scene[0]?.score ?? 0,
-    scene,
-    food: null,
-    workout: null,
-    netModel,
-    proof: [
-      `engine = CLIP ViT-B/32 · ${netModel?.dataset ?? "LAION-2B"}`,
-      `scene “${scene[0]?.label ?? "?"}” p=${((scene[0]?.score ?? 0) * 100).toFixed(0)}%`,
-    ],
-  };
+  if (/grocery|market|store/.test(name)) {
+    return {
+      kind: "place-grocery",
+      caption: "Grocery store",
+      confidence: 0.4,
+      scene: [],
+      food: null,
+      workout: null,
+      netModel: null,
+      proof: ["Filename looks like a grocery. The photo stayed on this device."],
+    };
+  }
+  onStatus?.("Reading the photo on this device…");
+  const food = await analyzePlateImage(file, new Date().getHours(), onStatus);
+  const scan = packFood("food", [], food, null);
+  return { ...scan, confidence: food.top?.softmax ?? food.ranked[0]?.softmax ?? 0 };
 }
 
 function packFood(

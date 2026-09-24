@@ -1,5 +1,6 @@
-import { writeFileSync } from "node:fs";
-import { searchPantry } from "../src/lib/pantry";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { searchPantry } from "../workers/api/src/pantry-data";
 import { undoLatestSip, pushSip } from "../src/lib/water-log";
 import { dailyCall } from "../packages/engine/src/index";
 
@@ -85,6 +86,10 @@ const report = `<!doctype html><meta charset="utf-8"><title>Pact persona report<
 </ul>
 <pre>${issues.slice(0, 40).join("\n")}</pre>`;
 
-writeFileSync(new URL("./report.html", import.meta.url), report);
+const reportDir = process.env.PACT_REPORT_DIR;
+if (reportDir) {
+  mkdirSync(reportDir, { recursive: true });
+  writeFileSync(path.join(reportDir, "report.html"), report);
+}
 console.log(`personas ${count} clean ${clean} undo ${undoOk} foods ${foodsFound}/${foodChecks}`);
 if (sawStranger > 0 || undoOk !== count || foodRate < 0.95) process.exit(1);

@@ -49,7 +49,7 @@ export default function ThreadPage() {
             ← Inbox
           </Link>
           <h1 className="font-display text-3xl">{friend.name}</h1>
-          <p className="text-sm text-mute">@{friend.handle} · CLIP captions the photo here; it is not uploaded</p>
+          <p className="text-sm text-mute">@{friend.handle} · A photo stays on this device</p>
         </div>
         <div className="flex gap-2">
           <Button tone="ghost" disabled={blocked} onClick={() => store.nudge(friend.id)}>

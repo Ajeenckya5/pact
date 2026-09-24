@@ -32,7 +32,7 @@ jobs:
         env:
           PACT_STATIC: "1"
           PACT_BASE_PATH: /pact
-          NEXT_PUBLIC_PACT_API: https://pact-api.ajeenckya.workers.dev
+          NEXT_PUBLIC_PACT_API: https://pact-api.ajeenckyam8.workers.dev
           NEXT_PUBLIC_PACT_WEB: https://pact-aj.pages.dev
         run: node scripts/static-export.mjs
       - uses: actions/upload-pages-artifact@v5

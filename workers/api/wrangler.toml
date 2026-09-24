@@ -1,10 +1,11 @@
 name = "pact-api"
+account_id = "ea080f698fdf34fa24a55dbd904ad90a"
 main = "src/worker.ts"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
-# PactRoom holds the ordered log. KV holds flags. D1 holds push subscriptions only.
+# PactRoom holds the ordered log. KV holds flags. D1 holds push subscriptions, the food catalog, and encrypted backups.
 
 [[durable_objects.bindings]]
 name = "PACT_ROOM"
@@ -16,12 +17,12 @@ new_sqlite_classes = ["PactRoom"]
 
 [[kv_namespaces]]
 binding = "PACT_CONFIG"
-id = "2edeca91052248fe96fddb527e18ce97"
+id = "42252498b97b44249ce3d1b6ebad6911"
 
 [[d1_databases]]
 binding = "PACT_DB"
 database_name = "pact"
-database_id = "d6360d71-db6b-4e62-a923-1e9b7ba0c18b"
+database_id = "61e70170-f337-4504-bbea-984959ad5dc4"
 migrations_dir = "migrations"
 
 [vars]

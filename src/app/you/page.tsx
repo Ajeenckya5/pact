@@ -1,6 +1,7 @@
 "use client";
 
 import { InstallApp } from "@/components/InstallApp";
+import { StorageMeter } from "@/components/StorageMeter";
 import { Button, Card, Eyebrow } from "@/components/ui";
 import { GOALS } from "@/lib/data";
 import { REPORT_CONTACT_URL } from "@/lib/report";
@@ -62,6 +63,7 @@ export default function YouPage() {
           </Button>
         )}
       </Card>
+      <StorageMeter />
       <Card className="space-y-2 p-6 text-sm text-mute">
         <InstallApp />
       </Card>

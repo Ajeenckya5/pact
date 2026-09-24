@@ -31,6 +31,17 @@ export async function openEpochKey(box: string, memberPublicKey: string, memberS
   return lib.crypto_box_seal_open(b64UrlToBytes(box), b64UrlToBytes(memberPublicKey), b64UrlToBytes(memberSecretKey));
 }
 
+export async function sealToBox(payload: unknown, boxPublicKey: string) {
+  const lib = await ready();
+  return bytesToB64Url(lib.crypto_box_seal(lib.from_string(JSON.stringify(payload)), b64UrlToBytes(boxPublicKey)));
+}
+
+export async function openSealedBox(ct: string, boxPublicKey: string, boxSecretKey: string) {
+  const lib = await ready();
+  const opened = lib.crypto_box_seal_open(b64UrlToBytes(ct), b64UrlToBytes(boxPublicKey), b64UrlToBytes(boxSecretKey));
+  return JSON.parse(lib.to_string(opened)) as unknown;
+}
+
 export async function createBoxKey() {
   const lib = await ready();
   const pair = lib.crypto_box_keypair();

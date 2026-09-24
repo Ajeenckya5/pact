@@ -2,7 +2,11 @@ import { GOALS } from "./data";
 import { faqLooksLikeAppHelp, searchFaq, type FaqItem } from "./faq";
 import { LIFT_VIDEOS } from "./lifts";
 import { MUSCLE_META } from "./muscles";
-import { PANTRY, type PantryItem } from "./pantry";
+import { cachedFoods, type PantryItem } from "./pantry";
+
+function foods() {
+  return cachedFoods();
+}
 import { SESSION_VIDEOS } from "./sessions";
 import { PROGRAMS, SPLIT_VIDEOS } from "./splits";
 import { doseFor, formatTodayCoach, slotOf, SLOT_LABEL, suggestToday, type TodaySuggestion } from "./today-session";
@@ -212,7 +216,7 @@ function product(n: number[]) {
 }
 
 export const COACH_CORPUS_SIZE =
-  product([FOOD_QS.length, PANTRY.length, GOALS.length]) +
+  product([FOOD_QS.length, foods().length, GOALS.length]) +
   product([LIFT_QS.length, LIFT_VIDEOS.length, GOALS.length]) +
   product([LIFT_ISSUE_QS.length, LIFT_VIDEOS.length, ISSUES.length]) +
   product([SESSION_QS.length, SESSION_VIDEOS.length, GOALS.length]) +
@@ -227,7 +231,19 @@ function fill(template: string, map: Record<string, string>) {
 }
 
 function foodQa(fi: number, gi: number, qi: number): CoachQA {
-  const food = PANTRY[fi];
+  const food = foods()[fi] ?? {
+    id: "food",
+    name: "that food",
+    group: "Prepared" as const,
+    aisle: "",
+    aliases: [],
+    kcal100: 0,
+    protein100: 0,
+    carbs100: 0,
+    fat100: 0,
+    servingG: 100,
+    servingLabel: "100g",
+  };
   const goal = GOALS[gi];
   const map = { food: food.name, goal: goal.name, goalVerb: goalVerb(goal), onGoal: onGoal(goal), inGoal: inGoal(goal) };
   return {
@@ -317,7 +333,7 @@ export function searchCoachCorpus(query: string, limit = 24): CoachQA[] {
   const muscle = hitMuscle(n);
 
   if (food) {
-    const fi = PANTRY.indexOf(food);
+    const fi = foods().indexOf(food);
     for (let qi = 0; qi < FOOD_QS.length && out.length < limit; qi++) push(foodQa(fi, GOALS.indexOf(goal), qi));
     for (let gi = 0; gi < GOALS.length && out.length < limit; gi++) push(foodQa(fi, gi, 0));
   }
@@ -343,9 +359,9 @@ export function searchCoachCorpus(query: string, limit = 24): CoachQA[] {
   if (out.length >= limit) return out.slice(0, limit);
 
   const nameHit = (label: string) => label.toLowerCase().includes(n) || tokens.some((t) => label.toLowerCase().includes(t));
-  for (let fi = 0; fi < PANTRY.length && out.length < limit; fi++) {
-    if (food && PANTRY[fi] === food) continue;
-    if (nameHit(PANTRY[fi].name) || PANTRY[fi].aliases.some((a) => nameHit(a))) push(foodQa(fi, GOALS.indexOf(goal), 0));
+  for (let fi = 0; fi < foods().length && out.length < limit; fi++) {
+    if (food && foods()[fi] === food) continue;
+    if (nameHit(foods()[fi].name) || foods()[fi].aliases.some((a) => nameHit(a))) push(foodQa(fi, GOALS.indexOf(goal), 0));
   }
   if (!lift) {
     for (let li = 0; li < LIFT_VIDEOS.length && out.length < limit; li++) {
@@ -358,13 +374,13 @@ export function searchCoachCorpus(query: string, limit = 24): CoachQA[] {
 export function featuredQas(): CoachQA[] {
   return [
     liftQa(0, 0, 0),
-    foodQa(PANTRY.findIndex((p) => p.id === "chicken") || 0, 0, 0),
-    foodQa(PANTRY.findIndex((p) => p.id === "rice") || 1, 1, 1),
+    foodQa(foods().findIndex((p) => p.id === "chicken") || 0, 0, 0),
+    foodQa(foods().findIndex((p) => p.id === "rice") || 1, 1, 1),
     liftIssueQa(0, 0, 0),
     sessionQa(0, 0, 0),
     splitQa(0, 2, 0),
     muscleQa(MUSCLE_LABELS.indexOf("Glutes") >= 0 ? MUSCLE_LABELS.indexOf("Glutes") : 0, 1, 0),
-    foodQa(Math.max(0, PANTRY.findIndex((p) => p.id === "yogurt")), 0, 3),
+    foodQa(Math.max(0, foods().findIndex((p) => p.id === "yogurt")), 0, 3),
   ];
 }
 
@@ -389,7 +405,7 @@ function hitLift(hay: string) {
 }
 
 function hitFood(hay: string) {
-  const aliasHits = PANTRY.filter((p) => [p.name, ...p.aliases, p.id.replace(/-/g, " ")].some((a) => a.length > 2 && hay.includes(a.toLowerCase())));
+  const aliasHits = foods().filter((p) => [p.name, ...p.aliases, p.id.replace(/-/g, " ")].some((a) => a.length > 2 && hay.includes(a.toLowerCase())));
   return aliasHits.sort((a, b) => b.name.length - a.name.length)[0];
 }
 
@@ -554,7 +570,7 @@ function liveFoodCall(food: PantryItem, ctx: CoachContext, matchedA: string) {
 export function coachStarters(ctx: CoachContext) {
   const suggestion = planFrom(ctx);
   const left = Math.max(0, Math.round(ctx.goal.protein - ctx.protein));
-  const chicken = PANTRY.find((p) => p.id === "chicken");
+  const chicken = foods().find((p) => p.id === "chicken");
   return [
     "What should I train today?",
     `Should I still do ${suggestion.pick.title} with recovery ${ctx.recovery}?`,
@@ -616,7 +632,7 @@ export function coachReply(query: string, ctx: CoachContext): CoachTurn {
 
   if (/how much protein|protein left|hit protein|am i short/.test(hay)) {
     const left = Math.max(0, Math.round(ctx.goal.protein - ctx.protein));
-    const chicken = PANTRY.find((p) => p.id === "chicken");
+    const chicken = foods().find((p) => p.id === "chicken");
     const a =
       left === 0
         ? `Protein is already at ${Math.round(ctx.protein)}g vs ${ctx.goal.protein}g. Don't force another shake unless hunger is real.`
@@ -652,7 +668,7 @@ export function coachReply(query: string, ctx: CoachContext): CoachTurn {
           /often|frequency/.test(hay) ? 3 : /rep/.test(hay) ? 2 : /priority/.test(hay) ? 1 : 0,
         );
   } else if (food) {
-    const fi = PANTRY.indexOf(food);
+    const fi = foods().indexOf(food);
     const gi = GOALS.indexOf(goal);
     matched = foodQa(
       fi,

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { scalePer100 } from "./algos";
-import { curatedPlates } from "./curated-plates";
-import { PANTRY_BY_ID } from "./pantry";
+import { curatedPlates } from "../../workers/api/src/plates";
+import { PANTRY_BY_ID } from "../../workers/api/src/pantry-data";
 
 describe("curated plates", () => {
   it("builds 150 plates from pantry macros", () => {

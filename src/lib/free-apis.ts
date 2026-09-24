@@ -1,4 +1,4 @@
-import { curatedPlates } from "./curated-plates";
+import { pactApi } from "./api-origin";
 import type { KitchenRecipe } from "./kitchen";
 import { fetchJson } from "./http";
 import { muscleFromWger, type MuscleId } from "./muscles";
@@ -314,8 +314,13 @@ export async function fetchFoods(q: string): Promise<LiveFood[]> {
     .slice(0, 10);
 }
 
-function plates() {
-  return curatedPlates();
+let plateCache: KitchenRecipe[] | null = null;
+
+async function plates() {
+  if (plateCache) return plateCache;
+  const result = await fetchJson<{ plates?: KitchenRecipe[] }>(pactApi("/plates"));
+  plateCache = result.ok && Array.isArray(result.data.plates) ? result.data.plates : [];
+  return plateCache;
 }
 
 function matchesPlate(recipe: KitchenRecipe, needle: string) {
@@ -328,7 +333,7 @@ function matchesPlate(recipe: KitchenRecipe, needle: string) {
 
 export async function fetchRecipes(ingredient: string): Promise<LiveRecipe[]> {
   const needle = ingredient.trim().toLowerCase();
-  return plates()
+  return (await plates())
     .filter((recipe) => !needle || matchesPlate(recipe, needle))
     .slice(0, 12)
     .map((recipe) => ({
@@ -345,13 +350,15 @@ export async function fetchRecipes(ingredient: string): Promise<LiveRecipe[]> {
 }
 
 export async function fetchRecipeCatalog(): Promise<{ recipes: KitchenRecipe[]; live: number; cached: boolean }> {
-  return { recipes: plates(), live: 0, cached: true };
+  const recipes = await plates();
+  return { recipes, live: 0, cached: true };
 }
 
 export async function fetchRecipesSearch(q: string): Promise<KitchenRecipe[]> {
   const needle = q.trim().toLowerCase();
-  if (!needle) return plates();
-  return plates().filter((recipe) => matchesPlate(recipe, needle));
+  const recipes = await plates();
+  if (!needle) return recipes;
+  return recipes.filter((recipe) => matchesPlate(recipe, needle));
 }
 
 export async function fetchExercises(q?: string, id?: string): Promise<LiveExercise[]> {

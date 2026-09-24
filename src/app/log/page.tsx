@@ -1,5 +1,6 @@
 "use client";
 
+import { OlderHistory } from "@/components/OlderHistory";
 import { Button, Card, Eyebrow, Field } from "@/components/ui";
 import { foodFromOffPayload, portionOf, type OffFood } from "@pact/core";
 import { waterAdds } from "@/lib/experience";
@@ -83,6 +84,7 @@ export default function LogPage() {
           </>
         ) : null}
       </Card>
+      <OlderHistory />
       <div className="grid gap-3 sm:grid-cols-3">
         <Link className="min-h-11 rounded-2xl border border-line px-4 py-4" href="/calories">
           Food

@@ -7,7 +7,7 @@ import {
   identifyPhoto,
   type AppPhotoScan,
 } from "@/lib/app-vision";
-import { CLIP_DOWNLOAD_MB, allowClipDownload, clipAllowed } from "@/lib/plate-net";
+import { previewSrc } from "@/lib/safe-image";
 import { usePact } from "@/lib/store";
 import { Camera } from "lucide-react";
 import Link from "next/link";
@@ -26,8 +26,6 @@ export function ClipScanButton({
   const ref = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [ask, setAsk] = useState(false);
-
   async function onFile(file: File) {
     setErr(null);
     const preview = URL.createObjectURL(file);
@@ -47,33 +45,11 @@ export function ClipScanButton({
         type="button"
         tone={tone}
         disabled={Boolean(phase)}
-        onClick={() => {
-          if (!clipAllowed()) {
-            setAsk(true);
-            return;
-          }
-          ref.current?.click();
-        }}
+        onClick={() => ref.current?.click()}
       >
         <Camera className="h-4 w-4" />
         {phase ?? label}
       </Button>
-      {ask ? (
-        <span className="max-w-xs text-xs text-mute">
-          This downloads about {CLIP_DOWNLOAD_MB} MB and keeps the photo on this device.
-          <Button
-            type="button"
-            className="mt-2"
-            onClick={() => {
-              allowClipDownload();
-              setAsk(false);
-              ref.current?.click();
-            }}
-          >
-            Download on this connection
-          </Button>
-        </span>
-      ) : null}
       <input
         ref={ref}
         type="file"
@@ -110,12 +86,12 @@ export function ClipResult({
     <div className="space-y-3">
       {preview ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={preview} alt="" className="h-40 w-full rounded-2xl object-cover" />
+        <img src={previewSrc(preview)} alt="" className="h-40 w-full rounded-2xl object-cover" />
       ) : null}
       <p className="text-sm text-cream">
         {scan.caption}
         <span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-mute">
-          CLIP · {Math.round(scan.confidence * 100)}%
+          Color match · {Math.round(scan.confidence * 100)}%
         </span>
       </p>
       {scan.kind === "food" && scan.food ? (

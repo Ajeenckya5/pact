@@ -43,7 +43,7 @@ State lives in the browser (`localStorage`). HealthKit, Health Connect, Strava O
 | [Open-Meteo](https://open-meteo.com) | Weather, UV, AQI, sunrise/sunset | `/api/weather` |
 | [Open-Meteo Geocoding](https://open-meteo.com/en/docs/geocoding-api) | Place search | `/api/geocode` |
 | [OSM Overpass](https://overpass-api.de) | Live gyms and grocery stores | `/api/places` |
-| [Open Food Facts](https://world.openfoodfacts.org) | Calorie / macro search | `/api/foods` |
+| Worker D1 `foods` | Calorie / macro search | `/foods` |
 | [TheMealDB](https://www.themealdb.com) | Recipes from ingredients | `/api/recipes` |
 | [wger](https://wger.de/en/software/api) | Exercise directory | `/api/exercises` |
 | [OpenStreetMap tiles](https://www.openstreetmap.org/copyright) | Map rendering (no key; OSM.de / Esri dark fallback) | Places page |
@@ -65,13 +65,13 @@ Enable **pact-free-apis** in Cursor Settings → MCP if it does not connect auto
 
 ## What’s inside
 
-- **Overview** — Pact score, live weather, and CLIP photo scan
+- **Overview** — Pact score, live weather, and an on-device color match
 - **Sleep** — stages, overnight vitals, wind-down reading, sun clock
-- **Calories** — CLIP ViT-B/32 (LAION-2B) on-device scan + Open Food Facts search
+- **Calories** — Worker food search, a 200-food device cache, and an on-device color match
 - **Water** — goal-scaled hydration
-- **Workouts** — YouTube library + wger directory + CLIP lift scan
-- **Market** — goal cart + TheMealDB recipes + grocery photo scan
-- **Places** — OSM Overpass + CLIP gym/grocery scan
+- **Workouts** — YouTube library + wger directory
+- **Market** — goal cart + TheMealDB recipes
+- **Places** — OSM Overpass gyms and grocery stores
 - **Strava / Wearables** — iOS + Android sources + feed health
-- **Friends, Chat, Community** — CLIP-captioned photos, nudges, comments
+- **Friends, Chat, Community** — photos stay on the device, plus nudges and comments
 - **Privacy** — private / friends / circle / public per metric

@@ -50,7 +50,7 @@ function MapInner() {
         <h1 className="mt-2 font-display text-4xl tracking-tight">Gyms and grocers, on the same map.</h1>
         <p className="mt-3 max-w-2xl text-mute">
           Pins load from OpenStreetMap around your GPS or a city you search — nothing is pre-pinned to San Francisco.
-          Scan a storefront and CLIP sets Gyms or Grocery.{" "}
+          A storefront photo stays on this device.{" "}
           {liveOk === true ? " OSM feed is up." : liveOk === false ? " OSM timed out. Retry or pick another area." : ""}
         </p>
       </div>

@@ -13,7 +13,7 @@ export {
   type Sealed,
 } from "./crypto";
 export { forward } from "./net";
-export { createBoxKey, createEpochKey, createSigningKey, openEnvelope, openEpochKey, pactHeaders, sealEnvelope, sealEpochKey, signBytes } from "./seal";
+export { createBoxKey, createEpochKey, createSigningKey, openEnvelope, openEpochKey, openSealedBox, pactHeaders, sealEnvelope, sealEpochKey, sealToBox, signBytes } from "./seal";
 export {
   DEFAULT_FLAGS,
   ENVELOPE_FIELDS,

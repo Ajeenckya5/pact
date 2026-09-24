@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { foodCandidateLabels, humanizeFood101, pantryIdForFood101, pantryIdForVisionLabel } from "./food101-map";
-import { PANTRY_BY_ID } from "./pantry";
+import { FOOD101_PANTRY, foodCandidateLabels, humanizeFood101, pantryIdForFood101, pantryIdForVisionLabel } from "./food101-map";
+import { PANTRY_BY_ID } from "../../workers/api/src/pantry-data";
 
 describe("Food-101 pantry map", () => {
   test("humanizes labels", () => {
@@ -31,10 +31,10 @@ describe("Food-101 pantry map", () => {
     assert.equal(pantryIdForVisionLabel("grilled_salmon"), "salmon");
   });
 
-  test("candidate labels cover the pantry, not just 101 dishes", () => {
+  test("candidate labels are dish titles, not the grocery catalog", () => {
     const labels = foodCandidateLabels();
-    assert.ok(labels.length > 400, `got ${labels.length}`);
-    assert.ok(labels.includes("Atlantic salmon"));
+    assert.ok(labels.length >= Object.keys(FOOD101_PANTRY).length - 5, `got ${labels.length}`);
     assert.ok(labels.includes("Grilled Salmon"));
+    assert.equal(labels.some((label) => /egusi/i.test(label)), false);
   });
 });

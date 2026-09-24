@@ -1,16 +1,33 @@
 /**
  * On-device plate scan.
  *
- * Primary: CLIP ViT-B/32 trained on LAION-2B (2B image–text pairs), zero-shot
- * against pantry + dish names. Photo stays on the device. First run caches a
- * quantized ONNX graph. Fallback: HSV prototype match only if the net cannot
- * load. Filename food words are a small boost. Time of day is not used to pick
- * a dish. Macros = pantry per-100g × serving grams. Atwater kcal = 4P+4C+9F.
+ * Color prototypes plus filename words. The photo stays on the device.
+ * Macros come from a cached food when one is stored, otherwise a small
+ * prototype table. Atwater kcal = 4P+4C+9F.
  */
 import { ATWATER, cosine, rgbToHsv, softmax } from "./algos";
 import { displayFoodLabel, pantryIdForVisionLabel } from "./food101-map";
 import type { FoodNetHit, FoodNetInfo } from "./food101-map";
-import { derivedKcal, findPantry, PANTRY, PANTRY_BY_ID, scalePantry, type PantryItem } from "./pantry";
+import { derivedKcal, findPantry, foodById, scalePantry, type PantryItem } from "./pantry";
+
+const SALMON: PantryItem = {
+  id: "salmon",
+  name: "Atlantic salmon",
+  group: "Seafood",
+  aisle: "Seafood",
+  aliases: ["salmon fillet"],
+  kcal100: 208,
+  protein100: 20,
+  carbs100: 0,
+  fat100: 13,
+  servingG: 170,
+  servingLabel: "6 oz",
+};
+
+function storedFood(id?: string): PantryItem | undefined {
+  if (!id) return undefined;
+  return foodById(id) ?? (id === "salmon" ? SALMON : undefined);
+}
 
 export { ATWATER, cosine, softmax };
 export const CONFIDENCE_FLOOR = 0.34;
@@ -218,7 +235,7 @@ function filenameHits(proto: Prototype, tokens: string[]) {
 
 function pantryOf(proto: Prototype): PantryItem | undefined {
   if (proto.pantryId) {
-    const hit = PANTRY.find((p) => p.id === proto.pantryId);
+    const hit = storedFood(proto.pantryId);
     if (hit) return hit;
   }
   return findPantry(proto.name) ?? findPantry(proto.aliases[0] ?? "");
@@ -226,7 +243,7 @@ function pantryOf(proto: Prototype): PantryItem | undefined {
 
 export function rescaleCandidate(c: PlateCandidate, grams: number): PlateCandidate {
   const g = Math.min(800, Math.max(20, Math.round(grams)));
-  const item = c.pantryId ? PANTRY_BY_ID[c.pantryId] : undefined;
+  const item = storedFood(c.pantryId);
   if (item) {
     const macros = scalePantry(item, g);
     return {
@@ -314,7 +331,7 @@ function candidateFromPantry(
   why: string[],
   foodId?: string,
 ): PlateCandidate {
-  const item = pantryId ? PANTRY_BY_ID[pantryId] : findPantry(name);
+  const item = storedFood(pantryId) ?? (name ? findPantry(name) : undefined);
   const useGrams = item?.servingG ?? grams;
   const macros = item
     ? scalePantry(item, useGrams)
@@ -338,7 +355,7 @@ function candidateFromPantry(
 
 function fileBoost(tokens: string[], label: string, pantryId?: string) {
   if (!tokens.length) return 0;
-  const item = pantryId ? PANTRY_BY_ID[pantryId] : undefined;
+  const item = storedFood(pantryId);
   const hay = [label, displayFoodLabel(label), item?.name, ...(item?.aliases ?? [])]
     .filter(Boolean)
     .join(" ")
@@ -554,18 +571,6 @@ export async function analyzePlateImage(
   } catch {
     features = null;
   }
-  let net: FoodNetHit[] = [];
-  let netInfo: FoodNetInfo | null = null;
-  try {
-    onStatus?.("Loading CLIP LAION-2B (first scan caches the model)…");
-    const { classifyPlate, foodNetInfo } = await import("./plate-net");
-    onStatus?.("Matching the photo against the pantry…");
-    net = await classifyPlate(file);
-    netInfo = foodNetInfo();
-  } catch {
-    net = [];
-    netInfo = null;
-  }
-  onStatus?.("Mapping dishes to pantry macros…");
-  return rankPlate({ features, filename: file.name, hour, net, netInfo });
+  onStatus?.("Matching colors on this device…");
+  return rankPlate({ features, filename: file.name, hour, net: [], netInfo: null });
 }

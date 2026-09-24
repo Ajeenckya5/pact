@@ -5,7 +5,7 @@ const isStatic = process.env.PACT_STATIC === "1";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.PACT_BASE_PATH || "";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@huggingface/transformers", "onnxruntime-node"],
+  serverExternalPackages: ["onnxruntime-node"],
   turbopack: {
     resolveAlias: {
       sharp: { browser: "" },

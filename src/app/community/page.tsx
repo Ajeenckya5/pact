@@ -4,6 +4,7 @@ import { ClipResult, ClipScanButton } from "@/components/ClipScan";
 import { Button, Card, Eyebrow, Field } from "@/components/ui";
 import type { AppPhotoScan } from "@/lib/app-vision";
 import { timeAgo } from "@/lib/format";
+import { previewSrc } from "@/lib/safe-image";
 import { usePact } from "@/lib/store";
 import { Heart } from "lucide-react";
 import { useState } from "react";
@@ -24,7 +25,7 @@ export default function CommunityPage() {
         <h1 className="mt-2 font-display text-4xl tracking-tight">Community, with a lock on it.</h1>
         <p className="mt-3 text-mute">
           Posts inherit your privacy defaults. Sleep and calories stay off the feed unless you raise the level. Photos
-          you attach are identified on-device with CLIP (LAION-2B) and stay friends-only by default.
+          you attach stay on this device and are friends-only by default.
         </p>
       </div>
 
@@ -37,7 +38,7 @@ export default function CommunityPage() {
         />
         {clip && photo ? <div className="mt-3"><ClipResult scan={clip} preview={photo} /></div> : photo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt="" className="mt-3 max-h-48 w-full rounded-2xl object-cover" />
+          <img src={previewSrc(photo)} alt="" className="mt-3 max-h-48 w-full rounded-2xl object-cover" />
         ) : null}
         <div className="mt-3 flex items-center justify-between gap-2">
           <ClipScanButton

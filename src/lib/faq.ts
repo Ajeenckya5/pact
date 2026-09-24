@@ -94,7 +94,7 @@ export const FAQS: FaqItem[] = [
     id: "cal-scan",
     category: "Calories",
     q: "Where can I scan a photo?",
-    a: "Calories, Overview, Community, Chat, Workouts, Recipes, Market, and Places all share one on-device CLIP ViT-B/32 trained on LAION-2B (2 billion image–text pairs). A plate maps to the pantry, a rack maps to the lift library, a storefront sets Gyms or Grocery. The first photo in the app downloads a quantized ONNX graph and caches it. Nothing is uploaded. On Calories you still confirm before a meal is logged.",
+    a: "A photo stays on this device and is matched by color. Food search uses the catalog, and this device keeps at most 200 recent and favorite foods. On Calories you still confirm before a meal is logged.",
   },
   {
     id: "cal-atwater",
@@ -286,7 +286,7 @@ export const FAQS: FaqItem[] = [
     id: "cir-community",
     category: "Circle",
     q: "What can I post in Community?",
-    a: "Text and an optional photo, with optional recovery/strain/workout stats. Attaching a photo runs CLIP on-device and can prefill the caption. Likes and comments stay local. Photo default follows Privacy.",
+    a: "Text and an optional photo, with optional recovery/strain/workout stats. A photo stays on this device. Likes and comments stay local. Photo default follows Privacy.",
   },
   {
     id: "cir-contacts",

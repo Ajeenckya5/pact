@@ -7,6 +7,6 @@ export function onNativeApp() {
 export function runtimeLabel() {
   if (onNativeApp()) return Capacitor.getPlatform() === "android" ? "Android APK" : "native app";
   if (typeof window === "undefined") return "Pact";
-  if (window.location.hostname.endsWith("github.io")) return "GitHub Pages";
+  if (window.location.hostname === "ajeenckya5.github.io") return "GitHub Pages";
   return "web";
 }

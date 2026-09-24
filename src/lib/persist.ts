@@ -1,5 +1,7 @@
 const DB_NAME = "pact";
+const DB_VERSION = 2;
 const STORE = "account";
+const DEVICE_STORE = "device";
 const KEY = "current";
 const LEGACY = "pact.v1";
 
@@ -7,10 +9,11 @@ type Saved = { schema?: number };
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      if (!db.objectStoreNames.contains(DEVICE_STORE)) db.createObjectStore(DEVICE_STORE);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -81,6 +84,32 @@ export async function clearAccount() {
   } catch {
     /* already empty */
   }
+}
+
+export async function readDeviceKey<T>(): Promise<T | null> {
+  if (typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(DEVICE_STORE, "readonly");
+      const req = tx.objectStore(DEVICE_STORE).get(KEY);
+      req.onsuccess = () => resolve((req.result as T | undefined) ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function writeDeviceKey(value: unknown) {
+  if (typeof indexedDB === "undefined") return;
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(DEVICE_STORE, "readwrite");
+    tx.objectStore(DEVICE_STORE).put(value, KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export function askPersistentStorage() {

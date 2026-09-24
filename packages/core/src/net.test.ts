@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { fetchJson } from "./net";
+import { allowedRequestUrl, fetchJson } from "./net";
 
 const original = globalThis.fetch;
 
@@ -9,6 +9,22 @@ afterEach(() => {
 });
 
 describe("fetchJson", () => {
+  it("does not fetch a host outside the allowlist", async () => {
+    let called = false;
+    globalThis.fetch = (async () => {
+      called = true;
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    const blocked = await fetchJson("https://evil.example/secret", { retries: 0 });
+    assert.equal(blocked.ok, false);
+    if (!blocked.ok) assert.equal(blocked.error.message, "blocked url");
+    assert.equal(called, false);
+    assert.equal(allowedRequestUrl("https://evil.example/secret"), null);
+    assert.equal(allowedRequestUrl("https://user:pass@example.test/foods"), null);
+    assert.equal(allowedRequestUrl("https://example.test/foods?q=paneer"), "https://example.test/foods?q=paneer");
+    assert.equal(allowedRequestUrl("http://127.0.0.1:8788/foods"), "http://127.0.0.1:8788/foods");
+  });
+
   it("returns a parse error for HTML instead of throwing", async () => {
     globalThis.fetch = (async () =>
       new Response("Unauthorized", { status: 200, headers: { "content-type": "text/html" } })) as typeof fetch;

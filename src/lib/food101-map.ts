@@ -2,7 +2,7 @@
  * Vision labels → Pact pantry ids.
  * CLIP/SigLIP return pantry names or Food-101-style dish names.
  */
-import { findPantry, PANTRY } from "./pantry";
+import { foodById } from "./pantry";
 
 export type FoodNetHit = {
   label: string;
@@ -16,6 +16,8 @@ export type FoodNetInfo = {
 
 export const FOOD101_PANTRY: Record<string, string> = {
   apple_pie: "cake",
+  atlantic_salmon: "salmon",
+  chicken_breast: "chicken",
   baby_back_ribs: "pork-chop",
   baklava: "cake",
   beef_carpaccio: "steak",
@@ -135,31 +137,25 @@ export function pantryIdForFood101(label: string): string | undefined {
 }
 
 export function pantryIdForVisionLabel(label: string): string | undefined {
-  return pantryIdForFood101(label) ?? findPantry(label)?.id ?? findPantry(humanizeFood101(label))?.id;
+  return pantryIdForFood101(label);
 }
 
 export function displayFoodLabel(label: string) {
   const id = pantryIdForVisionLabel(label);
-  if (id) {
-    const item = PANTRY.find((p) => p.id === id);
-    if (item) return item.name;
-  }
-  return humanizeFood101(label);
+  const item = id ? foodById(id) : undefined;
+  return item?.name ?? humanizeFood101(label);
 }
 
-/** CLIP candidate names: pantry rows plus well-known dish titles. */
+/** Dish titles the color matcher can name. The grocery catalog is not on the device. */
 export function foodCandidateLabels(): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  const add = (raw: string) => {
-    const label = raw.trim();
-    if (label.length < 2) return;
-    const key = label.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
+  for (const key of Object.keys(FOOD101_PANTRY)) {
+    const label = humanizeFood101(key);
+    const folded = label.toLowerCase();
+    if (seen.has(folded)) continue;
+    seen.add(folded);
     out.push(label);
-  };
-  for (const item of PANTRY) add(item.name);
-  for (const key of Object.keys(FOOD101_PANTRY)) add(humanizeFood101(key));
+  }
   return out;
 }

@@ -64,7 +64,7 @@ export function WorkoutDesk() {
         <h1 className="mt-2 font-display text-4xl tracking-tight">Log it. Repeat it. Race your circle.</h1>
         <p className="mt-3 max-w-2xl text-mute">
           The library is the desk: programs, split days, single-lift form, and follow-alongs — each with a muscle map
-          and a log button. Scan a rack or a machine with CLIP and it opens the matching film.
+          and a log button. A photo stays on this device.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">

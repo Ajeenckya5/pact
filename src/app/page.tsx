@@ -115,7 +115,7 @@ export default function OverviewPage() {
 
       {clip ? (
         <Card className="p-5">
-          <Eyebrow>CLIP · LAION-2B</Eyebrow>
+          <Eyebrow>Color match</Eyebrow>
           <div className="mt-4">
             <ClipResult
               scan={clip.scan}

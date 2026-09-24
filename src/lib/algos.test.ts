@@ -11,7 +11,7 @@ import {
   softmax,
   strainFromBle,
 } from "./algos";
-import { PANTRY_BY_ID, derivedKcal, scalePantry } from "./pantry";
+import { derivedKcal, scalePantry, type PantryItem } from "./pantry";
 
 describe("Atwater", () => {
   test("kcal = 4P + 4C + 9F", () => {
@@ -28,7 +28,19 @@ describe("Atwater", () => {
 
 describe("pantry scale", () => {
   test("macros_logged = per100 × grams / 100", () => {
-    const chicken = PANTRY_BY_ID.chicken;
+    const chicken: PantryItem = {
+      id: "chicken",
+      name: "Chicken breast",
+      group: "Meat",
+      aisle: "Meat",
+      aliases: [],
+      kcal100: 165,
+      protein100: 31,
+      carbs100: 0,
+      fat100: 3.6,
+      servingG: 170,
+      servingLabel: "170g cooked",
+    };
     assert.ok(chicken);
     const macros = scalePantry(chicken, 170);
     assert.equal(macros.kcal, scalePer100(chicken.kcal100, 170));

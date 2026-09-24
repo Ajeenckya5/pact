@@ -1,0 +1,38 @@
+name: Heavy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  personas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 1200 personas
+        env:
+          PACT_REPORT_DIR: ${{ runner.temp }}/personas
+        run: pnpm exec tsx personas/run.ts
+      - uses: actions/upload-artifact@v7
+        with:
+          name: persona-report
+          path: ${{ runner.temp }}/personas
+          retention-days: 7
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lighthouse
+        run: npx --yes lighthouse https://pact-aj.pages.dev --output html --output-path "$RUNNER_TEMP/lighthouse.html" --chrome-flags="--headless=new" --only-categories=performance
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-report
+          path: ${{ runner.temp }}/lighthouse.html
+          retention-days: 7

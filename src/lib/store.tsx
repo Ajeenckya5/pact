@@ -19,6 +19,8 @@ import {
   goalById,
 } from "./data";
 import { combinePactScore } from "./algos";
+import { archiveHasRows, dropArchived, splitDeviceHistory } from "./device-history";
+import { uploadArchive } from "./history-backup";
 import { rankPlate } from "./plate-vision";
 import { mealSlice, matchIngredient, type DietId, type MealTargets } from "./kitchen";
 import { localEpoch, localHour, nudgeDecision } from "@pact/core";
@@ -448,8 +450,18 @@ export function PactProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
+    let cancel = false;
     localStorage.setItem(KEY, JSON.stringify(state));
     void writeAccount(state);
+    const older = splitDeviceHistory(state).older;
+    if (!archiveHasRows(older)) return;
+    void uploadArchive(older).then((ok) => {
+      if (!ok || cancel) return;
+      setState((current) => dropArchived(current, older));
+    });
+    return () => {
+      cancel = true;
+    };
   }, [state, ready]);
 
   const toastTimer = useRef<number | null>(null);

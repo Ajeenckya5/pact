@@ -2,18 +2,21 @@
 
 import { Button, Card, Chip, Eyebrow, Field, Progress } from "@/components/ui";
 import { FOODS } from "@/lib/data";
-import type { LiveFood } from "@/lib/free-apis";
 import { clock, fmt } from "@/lib/format";
 import {
+  cachedFoods,
   derivedKcal,
-  PANTRY,
+  foodById,
+  hydrateFavoriteFoods,
   PANTRY_GROUPS,
+  rememberFoods,
   scalePantry,
-  searchPantry,
+  searchFoods,
   type PantryGroup,
   type PantryItem,
 } from "@/lib/pantry";
 import { copyText, remainingMacros } from "@/lib/experience";
+import { previewSrc } from "@/lib/safe-image";
 import {
   analyzePlateImage,
   rescaleCandidate,
@@ -21,7 +24,6 @@ import {
 } from "@/lib/plate-vision";
 import { mealTotals, useGoal, usePact } from "@/lib/store";
 import type { CustomFood, Food } from "@/lib/types";
-import { clientFoods } from "@/lib/live-client";
 import { Camera, Copy, Sparkles, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -43,9 +45,10 @@ export default function CaloriesPage() {
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<PantryGroup | "All">("All");
   const [portion, setPortion] = useState("");
-  const [liveFoods, setLiveFoods] = useState<LiveFood[]>([]);
-  const [liveFor, setLiveFor] = useState("");
-  const [liveState, setLiveState] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [pantryHits, setPantryHits] = useState<PantryItem[]>([]);
+  const [foodState, setFoodState] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [answered, setAnswered] = useState("");
+  const [cacheTick, setCacheTick] = useState(0);
   const [customName, setCustomName] = useState("");
   const [customKcal, setCustomKcal] = useState("");
   const [customProtein, setCustomProtein] = useState("");
@@ -54,31 +57,45 @@ export default function CaloriesPage() {
   const [saveCustom, setSaveCustom] = useState(true);
 
   useEffect(() => {
+    const missing = store.favoriteFoods.filter((id) => !foodById(id));
+    if (!missing.length) return;
+    let cancel = false;
+    void hydrateFavoriteFoods(store.favoriteFoods).then(() => {
+      if (!cancel) setCacheTick((tick) => tick + 1);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [store.favoriteFoods]);
+
+  useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) return;
-    const t = window.setTimeout(() => {
-      setLiveState("loading");
-      setLiveFoods([]);
-      setLiveFor(q);
-      clientFoods(q)
-        .then((d) => {
-          setLiveFoods(d.foods ?? []);
-          setLiveState("ok");
+    if (q.length < 2 && group === "All") return;
+    let cancel = false;
+    const timer = window.setTimeout(() => {
+      setFoodState("loading");
+      void searchFoods(q, group, store.favoriteFoods)
+        .then((hits) => {
+          if (cancel) return;
+          setPantryHits(hits.slice(0, 40));
+          setCacheTick((tick) => tick + 1);
+          setAnswered(`${q}\n${group}`);
+          setFoodState("ok");
         })
-        .catch(() => setLiveState("error"));
-    }, 400);
-    return () => window.clearTimeout(t);
-  }, [query]);
+        .catch(() => {
+          if (!cancel) setFoodState("error");
+        });
+    }, 300);
+    return () => {
+      cancel = true;
+      window.clearTimeout(timer);
+    };
+  }, [query, group, store.favoriteFoods]);
 
   const q = query.trim();
-  const shownLive = q.length >= 2 && liveFor === q ? liveFoods : [];
-
-  const pantryHits = useMemo(() => {
-    const hits = searchPantry(q, group);
-    if (q) return hits.slice(0, 40);
-    if (group !== "All") return hits;
-    return [];
-  }, [q, group]);
+  const searchingCatalog = q.length >= 2 || group !== "All";
+  const cacheCount = cachedFoods().length + cacheTick * 0;
+  const shownPantry = searchingCatalog ? pantryHits : [];
 
   const plateHits = useMemo(() => {
     if (!q) return FOODS;
@@ -97,21 +114,19 @@ export default function CaloriesPage() {
     return store.customFoods.filter((f) => f.name.toLowerCase().includes(n));
   }, [q, store.customFoods]);
 
-  const searching = q.length >= 2;
   const noHits =
-    searching &&
-    liveFor === q &&
-    liveState !== "loading" &&
-    pantryHits.length === 0 &&
+    searchingCatalog &&
+    foodState === "ok" &&
+    answered === `${q}\n${group}` &&
+    shownPantry.length === 0 &&
     plateHits.length === 0 &&
-    customHits.length === 0 &&
-    shownLive.length === 0;
+    customHits.length === 0;
 
   async function onFile(file: File) {
     const url = URL.createObjectURL(file);
     setPreview(url);
     setScanning(true);
-    setScanPhase("Starting CLIP…");
+    setScanPhase("Reading the photo…");
     setScan(null);
     setScanError(null);
     try {
@@ -156,6 +171,8 @@ export default function CaloriesPage() {
   function logPantry(item: PantryItem) {
     const grams = gramsFor(item);
     const macros = scalePantry(item, grams);
+    rememberFoods([item], store.favoriteFoods);
+    setCacheTick((tick) => tick + 1);
     store.addMeal({
       foodId: item.id,
       name: `${item.name} (${grams}g)`,
@@ -169,19 +186,6 @@ export default function CaloriesPage() {
 
   function logPlate(food: Food) {
     setPreview(food.photo);
-    store.addMeal({
-      foodId: food.id,
-      name: food.name,
-      kcal: food.kcal,
-      protein: food.protein,
-      carbs: food.carbs,
-      fat: food.fat,
-      source: "manual",
-      photo: food.photo,
-    });
-  }
-
-  function logLive(food: LiveFood) {
     store.addMeal({
       foodId: food.id,
       name: food.name,
@@ -254,9 +258,7 @@ export default function CaloriesPage() {
           <Eyebrow>AI calorie tracking</Eyebrow>
           <h1 className="mt-2 font-display text-4xl tracking-tight">Photograph the plate. Argue the macros later.</h1>
           <p className="mt-3 max-w-2xl text-mute">
-            {PANTRY.length} pantry ingredients, Open Food Facts for packaged food, and CLIP ViT-B/32 (LAION-2B) on this
-            device — the same model runs on Overview, Community, Chat, Workouts, Recipes, Market, and Places. You confirm
-            before anything is logged.
+            Search goes to the food catalog. This device keeps up to 200 recent and favorite foods{cacheCount ? ` (${cacheCount} saved)` : ""}. A photo uses a color match on this device. You confirm before anything is logged.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -308,7 +310,7 @@ export default function CaloriesPage() {
           <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-ink">
             {preview ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="Meal preview" className="h-64 w-full object-cover" />
+              <img src={previewSrc(preview)} alt="Meal preview" className="h-64 w-full object-cover" />
             ) : (
               <button
                 onClick={() => fileRef.current?.click()}
@@ -325,19 +327,13 @@ export default function CaloriesPage() {
             <div className="mt-4 space-y-3">
               {scan.unsure ? (
                 <p className="text-sm text-gold">
-                  {scan.engine === "clip"
-                    ? "CLIP is not sure enough to auto-pick. Choose a dish below or search the pantry."
-                    : "Vision model did not load. Color fallback is weak — pick from the pantry."}
+                  Color match is not sure enough to auto-pick. Choose a dish below or search foods.
                 </p>
               ) : (
                 <p className="text-sm text-cream">
                   {drafted.name} · {Math.round(drafted.softmax * 100)}% · {drafted.kcal} kcal for {drafted.grams}g
                   <span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-mute">
-                    {scan.engine === "clip"
-                      ? scan.netModel?.dataset
-                        ? `CLIP · ${scan.netModel.dataset.split(" (")[0]}`
-                        : "CLIP LAION-2B"
-                      : "HSV fallback"}
+                    Color match
                   </span>
                 </p>
               )}
@@ -390,8 +386,7 @@ export default function CaloriesPage() {
             </div>
           ) : (
             <p className="mt-4 text-xs text-mute">
-              The first photo scan downloads a 150 MB model on Wi-Fi and keeps it on this device. On cellular, Pact asks
-              before that download. Nothing is logged until you confirm a portion.
+              A photo stays on this device and is matched by color. Nothing is logged until you confirm a portion.
             </p>
           )}
           <div className="mt-5">
@@ -417,7 +412,7 @@ export default function CaloriesPage() {
             {GROUPS.map((g) => (
               <Chip key={g} active={group === g} onClick={() => setGroup(g)}>
                 {g}
-                {g === "All" ? ` · ${PANTRY.length}` : ""}
+                {g === "All" ? ` · ${cacheCount}` : ""}
               </Chip>
             ))}
           </div>
@@ -435,8 +430,8 @@ export default function CaloriesPage() {
           {!q && group === "All" ? (
             <Card className="p-5">
               <p className="text-sm text-mute">
-                Pick a group or type a name. The pantry covers meats, seafood, dairy, grains, produce, fruit, nuts,
-                oils, condiments, drinks, prepared plates, and powders — {PANTRY.length} foods, macros per 100g.
+                Pick a group or type a name. Results come from the catalog. Recent and favorite foods stay on this
+                device, up to 200.
               </p>
             </Card>
           ) : null}
@@ -445,7 +440,7 @@ export default function CaloriesPage() {
             <Card className="divide-y divide-line">
               <p className="px-5 py-3 text-[11px] uppercase tracking-[0.16em] text-mute">Favorites</p>
               {store.favoriteFoods
-                .map((id) => PANTRY.find((p) => p.id === id))
+                .map((id) => foodById(id))
                 .filter((item): item is PantryItem => Boolean(item))
                 .map((item) => {
                   const grams = gramsFor(item);
@@ -496,12 +491,12 @@ export default function CaloriesPage() {
             </Card>
           ) : null}
 
-          {pantryHits.length > 0 ? (
+          {shownPantry.length > 0 ? (
             <Card className="divide-y divide-line">
               <p className="px-5 py-3 text-[11px] uppercase tracking-[0.16em] text-mute">
-                Pantry{q ? ` · ${pantryHits.length} match${pantryHits.length === 1 ? "" : "es"}` : ` · ${group}`}
+                Pantry{q ? ` · ${shownPantry.length} match${shownPantry.length === 1 ? "" : "es"}` : ` · ${group}`}
               </p>
-              {pantryHits.map((item) => {
+              {shownPantry.map((item) => {
                 const grams = gramsFor(item);
                 const macros = scalePantry(item, grams);
                 const fav = store.favoriteFoods.includes(item.id);
@@ -557,33 +552,15 @@ export default function CaloriesPage() {
             </Card>
           ) : null}
 
-          {q.length >= 2 && (liveState === "loading" || liveState === "error" || shownLive.length > 0) ? (
-            <Card className="divide-y divide-line">
-              {liveState === "loading" ? <p className="px-5 py-3 text-sm text-mute">Searching Open Food Facts…</p> : null}
-              {liveState === "error" ? (
-                <p className="px-5 py-3 text-sm text-mute">Open Food Facts is unreachable. Pact pantry still works.</p>
-              ) : null}
-              {shownLive.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left hover:bg-white/3"
-                  onClick={() => logLive(f)}
-                >
-                  <span>
-                    {f.name}
-                    <span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-mute">OFF</span>
-                  </span>
-                  <span className="font-mono text-sm text-mute">{f.kcal} kcal</span>
-                </button>
-              ))}
-            </Card>
+          {searchingCatalog && foodState === "loading" ? <p className="text-sm text-mute">Searching the catalog…</p> : null}
+          {searchingCatalog && foodState === "error" ? (
+            <p className="text-sm text-mute">The catalog did not answer. Recent foods on this device still work.</p>
           ) : null}
 
           {noHits ? (
             <Card className="p-5">
               <p className="text-sm text-mute">
-                Nothing in Pact or Open Food Facts for “{q}”. Enter the label and macros — the log still counts.
+                Nothing in the catalog for “{q}”. Enter the label and macros — the log still counts.
               </p>
               <button type="button" className="mt-2 text-sm text-acid" onClick={() => setQuery("")}>
                 Clear search

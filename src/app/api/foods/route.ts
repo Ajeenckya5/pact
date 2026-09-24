@@ -1,13 +1,13 @@
-import { jsonErr, jsonOk } from "@/app/api/_util";
-import { fetchFoods } from "@/lib/free-apis";
+import { jsonOk } from "@/app/api/_util";
+import { fetchJson } from "@/lib/http";
+
+function workerBase() {
+  return (process.env.PACT_API || process.env.NEXT_PUBLIC_PACT_API || "http://127.0.0.1:8788").replace(/\/$/, "");
+}
 
 export async function GET(req: Request) {
-  const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
-  if (q.length < 2) return jsonOk({ foods: [] }, 30);
-  try {
-    const foods = await fetchFoods(q);
-    return jsonOk({ foods, source: "open-food-facts" }, 120);
-  } catch (err) {
-    return jsonErr(err instanceof Error ? err.message : "foods unavailable");
-  }
+  const query = new URL(req.url).search;
+  const result = await fetchJson<{ foods?: unknown[] }>(`${workerBase()}/foods${query}`);
+  if (!result.ok) return jsonOk({ foods: [] }, 0);
+  return jsonOk({ foods: result.data.foods ?? [] }, 30);
 }

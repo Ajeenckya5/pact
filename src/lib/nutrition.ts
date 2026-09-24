@@ -1,4 +1,4 @@
-import { PANTRY } from "./pantry";
+import { findPantry } from "./pantry";
 
 export type DietId =
   | "vegan"
@@ -46,16 +46,7 @@ function nutriOf(item: { kcal100: number; protein100: number; carbs100: number; 
 }
 
 function buildNutriTable(): Record<string, Nutri> {
-  const out: Record<string, Nutri> = { ...NUTRI_ALIASES };
-  for (const p of PANTRY) {
-    const n = nutriOf(p);
-    const keys = new Set([p.id.replace(/-/g, " "), p.name.toLowerCase(), ...p.aliases.map((a) => a.toLowerCase())]);
-    for (const key of keys) {
-      if (key.length < 3) continue;
-      if (!out[key]) out[key] = n;
-    }
-  }
-  return out;
+  return { ...NUTRI_ALIASES };
 }
 
 /** Per 100g. Longest word-boundary key wins. */
@@ -168,6 +159,8 @@ export function legalForDiets(name: string, diets: DietId[]): boolean {
 }
 
 export function nutriFor(name: string): Nutri {
+  const cached = findPantry(name);
+  if (cached) return nutriOf(cached);
   const n = name.toLowerCase();
   const hit = NUTRI_KEYS.find((k) => k.re.test(n));
   return hit?.nutri ?? FALLBACK_NUTRI;

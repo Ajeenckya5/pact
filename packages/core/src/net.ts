@@ -10,32 +10,44 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const ALLOWED_HOSTS = new Set([
-  "example.test",
-  "localhost",
-  "127.0.0.1",
-  "pact-api.ajeenckya.workers.dev",
-  "pact-aj.pages.dev",
-  "ajeenckya5.github.io",
-  "world.openfoodfacts.org",
-  "api.open-meteo.com",
-  "air-quality-api.open-meteo.com",
-  "geocoding-api.open-meteo.com",
-  "overpass-api.de",
-  "overpass.kumi.systems",
-  "wger.de",
-  "api.bigdatacloud.net",
-  "tile.openstreetmap.org",
-  "tiles.openfreemap.org",
-  "i.ytimg.com",
-  "www.youtube.com",
-  "images.unsplash.com",
-  "api.github.com",
-]);
+/** Fixed origins. The fetch URL is built from one of these strings, not from the caller. */
+function hostOrigin(hostname: string, protocol: string, port: string): string | null {
+  if (protocol === "https:" && (port === "" || port === "443")) {
+    if (hostname === "example.test") return "https://example.test";
+    if (hostname === "pact-api.ajeenckya.workers.dev") return "https://pact-api.ajeenckya.workers.dev";
+    if (hostname === "pact-aj.pages.dev") return "https://pact-aj.pages.dev";
+    if (hostname === "ajeenckya5.github.io") return "https://ajeenckya5.github.io";
+    if (hostname === "world.openfoodfacts.org") return "https://world.openfoodfacts.org";
+    if (hostname === "search.openfoodfacts.org") return "https://search.openfoodfacts.org";
+    if (hostname === "api.open-meteo.com") return "https://api.open-meteo.com";
+    if (hostname === "air-quality-api.open-meteo.com") return "https://air-quality-api.open-meteo.com";
+    if (hostname === "geocoding-api.open-meteo.com") return "https://geocoding-api.open-meteo.com";
+    if (hostname === "overpass-api.de") return "https://overpass-api.de";
+    if (hostname === "overpass.kumi.systems") return "https://overpass.kumi.systems";
+    if (hostname === "wger.de") return "https://wger.de";
+    if (hostname === "api.bigdatacloud.net") return "https://api.bigdatacloud.net";
+    if (hostname === "tile.openstreetmap.org") return "https://tile.openstreetmap.org";
+    if (hostname === "tiles.openfreemap.org") return "https://tiles.openfreemap.org";
+    if (hostname === "i.ytimg.com") return "https://i.ytimg.com";
+    if (hostname === "www.youtube.com") return "https://www.youtube.com";
+    if (hostname === "images.unsplash.com") return "https://images.unsplash.com";
+    if (hostname === "api.github.com") return "https://api.github.com";
+    if (hostname === "github.com") return "https://github.com";
+  }
+  if (protocol === "http:" && hostname === "127.0.0.1" && port === "8788") return "http://127.0.0.1:8788";
+  if (protocol === "http:" && hostname === "localhost" && port === "8788") return "http://localhost:8788";
+  if (protocol === "http:" && hostname === "127.0.0.1" && port === "3099") return "http://127.0.0.1:3099";
+  if (protocol === "http:" && hostname === "localhost" && port === "3099") return "http://localhost:3099";
+  if (protocol === "http:" && hostname === "127.0.0.1" && port === "3101") return "http://127.0.0.1:3101";
+  if (protocol === "http:" && hostname === "localhost" && port === "3101") return "http://localhost:3101";
+  if (protocol === "http:" && hostname === "127.0.0.1" && (port === "" || port === "80")) return "http://127.0.0.1";
+  if (protocol === "http:" && hostname === "localhost" && (port === "" || port === "80")) return "http://localhost";
+  return null;
+}
 
-/** Same-origin paths, or https to a host this app actually calls. */
+/** Same-origin paths, or a URL rebuilt from an allowlisted origin. */
 export function allowedRequestUrl(input: string): string | null {
-  if (input.startsWith("/") && !input.startsWith("//")) return input;
+  if (input.startsWith("/") && !input.startsWith("//") && !input.includes("://") && !input.includes("\\")) return input;
   let url: URL;
   try {
     url = new URL(input);
@@ -43,10 +55,9 @@ export function allowedRequestUrl(input: string): string | null {
     return null;
   }
   if (url.username || url.password) return null;
-  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-  if (url.protocol === "http:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") return null;
-  if (!ALLOWED_HOSTS.has(url.hostname)) return null;
-  return url.toString();
+  const origin = hostOrigin(url.hostname, url.protocol, url.port);
+  if (!origin) return null;
+  return origin + url.pathname + url.search;
 }
 
 async function once<T>(url: string, init: FetchJsonInit | undefined, timeoutMs: number): Promise<FetchResult<T>> {

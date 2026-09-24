@@ -371,6 +371,7 @@ type Store = PactState & {
   setCheckin: (key: keyof PactState["checkins"], v: boolean) => void;
   addReading: (min: number) => void;
   logWorkout: (entry: Omit<WorkoutLog, "id" | "at">) => void;
+  logSleepHours: (hours: number) => void;
   completeWorkout: (
     kcal: number,
     minutes: number,
@@ -971,6 +972,16 @@ export function PactProvider({ children }: { children: ReactNode }) {
       logWorkout: (entry) => {
         update((s) => applyWorkoutLog(s, entry));
         flash(`Logged ${entry.title} · ${entry.minutes} min`);
+      },
+      logSleepHours: (hours) => {
+        const minutes = Math.max(0, Math.round(hours * 60));
+        update((s) => ({
+          ...s,
+          sleepMin: minutes,
+          checkins: { ...s.checkins, sleep: minutes >= 7 * 60 },
+        }));
+        flash(minutes >= 7 * 60 ? `Logged ${hours} h of sleep` : `Logged ${hours} h. Sleep 7h+ is still open.`);
+        if (minutes >= 7 * 60) tap();
       },
       completeWorkout: (kcal, minutes, meta) => {
         update((s) =>

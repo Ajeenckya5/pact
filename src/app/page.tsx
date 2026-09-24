@@ -43,6 +43,13 @@ export default function OverviewPage() {
     Object.values(store.checkins).filter(Boolean).length,
   );
   const partner = usePartner();
+  const [sleepOpen, setSleepOpen] = useState(false);
+  const [sleepHours, setSleepHours] = useState("7");
+  const [walkOpen, setWalkOpen] = useState(false);
+  const [walkMin, setWalkMin] = useState("20");
+  const deviceSleep =
+    (store.demo || body.ble.links > 0 || store.connectedWearables.length > 0) && body.sleepMin > 0;
+  const deviceSleepHours = deviceSleep ? Math.round((body.sleepMin / 60) * 10) / 10 : 0;
   const [clip, setClip] = useState<{ scan: AppPhotoScan; preview: string } | null>(null);
   const pactBits = [
     { key: "sleep" as const, label: "Sleep 7h+", icon: Moon, done: store.checkins.sleep },
@@ -214,14 +221,6 @@ export default function OverviewPage() {
             !bit.done &&
             ((bit.key === "fuel" && totals.protein > 0) || (bit.key === "water" && store.waterMl > 0));
           const state = bit.done ? "Done" : partial ? "Partial" : "Open";
-          const quick =
-            bit.key === "water"
-              ? { label: "+250 ml", kind: "button" as const }
-              : bit.key === "sleep"
-                ? { label: "Log 7h+", kind: "button" as const }
-                : bit.key === "move"
-                  ? { label: "Log a walk", kind: "button" as const }
-                  : { label: "Log food", kind: "link" as const };
           return (
             <div
               key={bit.key}
@@ -234,31 +233,141 @@ export default function OverviewPage() {
               >
                 <span className="flex items-center justify-between">
                   <Icon className="h-4 w-4 text-mute" aria-hidden />
-                  <span
-                    className={`flex h-8 w-8 items-center justify-center rounded-full ${bit.done ? "bg-done text-ink" : partial ? "bg-gold text-ink" : "bg-ink text-cream"}`}
-                  >
-                    {bit.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                  </span>
+                  {bit.done ? (
+                    <span className="inline-flex min-h-11 items-center gap-1 text-sm font-medium">
+                      <Check className="h-4 w-4" aria-hidden />
+                      Done
+                    </span>
+                  ) : (
+                    <span
+                      className={`flex h-11 w-11 items-center justify-center rounded-full ${partial ? "bg-gold text-ink" : "bg-ink text-cream"}`}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                  )}
                 </span>
                 <span className="mt-4 block text-sm text-mute">Today&apos;s pact</span>
                 <span className="block font-display text-xl">{bit.label}</span>
                 <span className="mt-1 block text-xs text-mute">{state}</span>
               </button>
-              {bit.done ? null : quick.kind === "link" ? (
-                <Link href="/calories" className="mt-3 inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink">
-                  {quick.label}
+              {bit.done ? null : bit.key === "fuel" ? (
+                <Link
+                  href="/calories"
+                  aria-label="Log food"
+                  className="mt-3 inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink"
+                >
+                  Log food
                 </Link>
-              ) : (
+              ) : bit.key === "water" ? (
                 <button
                   type="button"
+                  aria-label="Add 250 ml of water"
                   className="mt-3 inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink"
-                  onClick={() => {
-                    if (bit.key === "water") store.addWater(250);
-                    else store.setCheckin(bit.key, true);
-                  }}
+                  onClick={() => store.addWater(250)}
                 >
-                  {quick.label}
+                  Add 250 ml of water
                 </button>
+              ) : bit.key === "sleep" ? (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    aria-label="Log sleep"
+                    className="inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink"
+                    onClick={() => {
+                      setSleepHours(deviceSleep ? String(deviceSleepHours) : "7");
+                      setSleepOpen(true);
+                    }}
+                  >
+                    Log sleep
+                  </button>
+                  {sleepOpen ? (
+                    <form
+                      className="mt-3 space-y-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const hours = deviceSleep ? deviceSleepHours : Number(sleepHours);
+                        if (!Number.isFinite(hours) || hours <= 0) return;
+                        store.logSleepHours(hours);
+                        setSleepOpen(false);
+                      }}
+                    >
+                      <label className="block text-xs text-mute" htmlFor="sleep-hours">
+                        Hours of sleep
+                      </label>
+                      <input
+                        id="sleep-hours"
+                        aria-label="Hours of sleep"
+                        className="min-h-11 w-full rounded-xl border border-line bg-ink px-3"
+                        type="number"
+                        min="0"
+                        max="16"
+                        step="0.5"
+                        value={deviceSleep ? String(deviceSleepHours) : sleepHours}
+                        readOnly={deviceSleep}
+                        onChange={(event) => setSleepHours(event.target.value)}
+                      />
+                      <p className="text-xs text-mute">
+                        {deviceSleep
+                          ? `${body.ble.links > 0 ? "Strap" : "Health"} data replaced the 7 hour default.`
+                          : "Default is 7 hours."}
+                      </p>
+                      <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm">
+                        Save sleep
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    aria-label="Log a walk"
+                    className="inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink"
+                    onClick={() => {
+                      setWalkMin("20");
+                      setWalkOpen(true);
+                    }}
+                  >
+                    Log a walk
+                  </button>
+                  {walkOpen ? (
+                    <form
+                      className="mt-3 space-y-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const minutes = Number(walkMin);
+                        if (!Number.isFinite(minutes) || minutes <= 0) return;
+                        store.logWorkout({
+                          title: "Walk",
+                          category: "Cardio",
+                          minutes,
+                          kcal: Math.round(minutes * 4),
+                          source: "manual",
+                        });
+                        setWalkOpen(false);
+                      }}
+                    >
+                      <label className="block text-xs text-mute" htmlFor="walk-minutes">
+                        Minutes
+                      </label>
+                      <input
+                        id="walk-minutes"
+                        aria-label="Walk duration in minutes"
+                        className="min-h-11 w-full rounded-xl border border-line bg-ink px-3"
+                        type="number"
+                        min="1"
+                        max="300"
+                        step="1"
+                        value={walkMin}
+                        onChange={(event) => setWalkMin(event.target.value)}
+                      />
+                      <p className="text-xs text-mute">Default is 20 minutes.</p>
+                      <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm">
+                        Save walk
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
               )}
             </div>
           );
@@ -269,6 +378,15 @@ export default function OverviewPage() {
           <div>
             <Eyebrow>Partner</Eyebrow>
             <p className="mt-1 font-display text-2xl">{partner.live === "open" ? "Checked in with you" : "No partner yet"}</p>
+            {partner.live === "open" ? null : (
+              <Link
+                href="/people"
+                aria-label="Invite someone"
+                className="mt-3 inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink"
+              >
+                Invite someone
+              </Link>
+            )}
             <p className="text-sm text-mute">
               {partner.checkedAt
                 ? `Last check-in ${new Date(partner.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`

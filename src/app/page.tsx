@@ -17,20 +17,21 @@ import { mealTotals, pactScore, useGoal, usePact } from "@/lib/store";
 import { dailyCall } from "@pact/core";
 import { useCoords } from "@/lib/use-live";
 import { liveOrLog } from "@/lib/wearable-live";
+import { hoursFromMinutes, isDeviceSleep, resolveSleepSave, sleepSourceLabel } from "@/lib/sleep-source";
 import { useLiveBody } from "@/lib/wearable-live-context";
 import { peopleInCircle, todayLogs, weekStats } from "@/lib/training";
 import { Check, Droplets, Moon, PersonStanding, Utensils } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export default function OverviewPage() {
   const store = usePact();
   const here = useCoords();
   const goal = useGoal();
   const { body } = useLiveBody();
-  const totals = mealTotals(store.meals);
+  const totals = mealTotals(store.todayMeals);
   const scored = hasPactData(store);
-  const score = pactScore({ ...store, recovery: body.recovery, sleepScore: body.sleepScore });
+  const score = pactScore({ ...store, meals: store.todayMeals, recovery: body.recovery, sleepScore: body.sleepScore });
   const hydro = Math.min(100, (store.waterMl / goal.waterMl) * 100);
   const protein = Math.min(100, (totals.protein / goal.protein) * 100);
   const week = weekStats(store.workoutLogs);
@@ -45,11 +46,22 @@ export default function OverviewPage() {
   const partner = usePartner();
   const [sleepOpen, setSleepOpen] = useState(false);
   const [sleepHours, setSleepHours] = useState("7");
+  const [sleepEditing, setSleepEditing] = useState(false);
+  const [sleepError, setSleepError] = useState<string | null>(null);
+  const sleepInput = useRef<HTMLInputElement>(null);
   const [walkOpen, setWalkOpen] = useState(false);
   const [walkMin, setWalkMin] = useState("20");
-  const deviceSleep =
-    (store.demo || body.ble.links > 0 || store.connectedWearables.length > 0) && body.sleepMin > 0;
-  const deviceSleepHours = deviceSleep ? Math.round((body.sleepMin / 60) * 10) / 10 : 0;
+  const deviceSleep = isDeviceSleep(store.sleepSource, store.sleepMin);
+  const sleepLogged = store.sleepMin > 0;
+  const loggedSleepHours = hoursFromMinutes(store.sleepMin);
+  const sleepFrom = sleepSourceLabel(store.sleepSource);
+  const openSleep = (editing: boolean) => {
+    setSleepHours(sleepLogged ? String(loggedSleepHours) : "7");
+    setSleepEditing(editing || !deviceSleep);
+    setSleepError(null);
+    setSleepOpen(true);
+    if (editing) window.requestAnimationFrame(() => sleepInput.current?.focus());
+  };
   const [clip, setClip] = useState<{ scan: AppPhotoScan; preview: string } | null>(null);
   const pactBits = [
     { key: "sleep" as const, label: "Sleep 7h+", icon: Moon, done: store.checkins.sleep },
@@ -73,7 +85,7 @@ export default function OverviewPage() {
     waterGoal: goal.waterMl,
     proteinLeft: Math.max(0, Math.round(goal.protein - totals.protein)),
     boxesOpen,
-    empty: !store.demo && store.meals.length === 0 && store.waterMl === 0 && boxesOpen === 4,
+    empty: !store.demo && store.todayMeals.length === 0 && store.waterMl === 0 && boxesOpen === 4,
   });
 
   return (
@@ -187,7 +199,7 @@ export default function OverviewPage() {
               value={store.demo || body.ble.links ? body.sleepScore : "—"}
               hint={
                 store.demo || body.sleepMin
-                  ? `${Math.floor(body.sleepMin / 60)}h ${body.sleepMin % 60}m · ${store.demo ? "Sample" : liveOrLog(body.authority.sleep)}`
+                  ? `${Math.floor(body.sleepMin / 60)}h ${body.sleepMin % 60}m · ${store.demo ? "Sample" : sleepFrom}`
                   : "No sleep logged"
               }
               tone="text-violet"
@@ -250,7 +262,100 @@ export default function OverviewPage() {
                 <span className="block font-display text-xl">{bit.label}</span>
                 <span className="mt-1 block text-xs text-mute">{state}</span>
               </button>
-              {bit.done ? null : bit.key === "fuel" ? (
+              {bit.key === "sleep" ? (
+                <div className="mt-3">
+                  {sleepLogged ? (
+                    <p className="text-xs text-mute" data-sleep-source={store.sleepSource ?? ""}>
+                      {loggedSleepHours} h · {sleepFrom}
+                    </p>
+                  ) : null}
+                  {sleepOpen ? null : (
+                    <button
+                      type="button"
+                      className={`mt-2 inline-flex min-h-11 items-center rounded-full px-4 text-sm ${bit.done ? "border border-line" : "bg-acid text-ink"}`}
+                      onClick={() => openSleep(bit.done)}
+                    >
+                      {bit.done ? "Edit sleep" : "Log sleep"}
+                    </button>
+                  )}
+                  {sleepOpen ? (
+                    <form
+                      className="mt-3 space-y-2"
+                      noValidate
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const saved = resolveSleepSave({
+                          sleepMin: store.sleepMin,
+                          sleepSource: store.sleepSource,
+                          hours: Number(sleepHours),
+                        });
+                        if (!saved) {
+                          setSleepError("Enter hours between 0.5 and 16.");
+                          sleepInput.current?.focus();
+                          return;
+                        }
+                        store.logSleep(saved.minutes, saved.source);
+                        setSleepOpen(false);
+                      }}
+                    >
+                      <label className="block text-xs text-mute" htmlFor="sleep-hours">
+                        Hours of sleep
+                      </label>
+                      <input
+                        ref={sleepInput}
+                        id="sleep-hours"
+                        className="min-h-11 w-full rounded-xl border border-line bg-ink px-3 read-only:border-transparent read-only:bg-card"
+                        type="number"
+                        inputMode="decimal"
+                        min="0.5"
+                        max="16"
+                        step="0.1"
+                        value={sleepHours}
+                        readOnly={!sleepEditing}
+                        aria-invalid={sleepError ? true : undefined}
+                        aria-describedby="sleep-hours-note"
+                        onChange={(event) => {
+                          setSleepHours(event.target.value);
+                          setSleepError(null);
+                        }}
+                      />
+                      <p id="sleep-hours-note" className="text-xs text-mute" aria-live="polite">
+                        {sleepError ??
+                          (deviceSleep
+                            ? sleepEditing
+                              ? `A change is saved as your own entry instead of ${sleepFrom.replace(/^From /, "")}.`
+                              : sleepFrom
+                            : "Default is 7 hours.")}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm">
+                          Save sleep
+                        </button>
+                        {sleepEditing ? null : (
+                          <button
+                            type="button"
+                            aria-label="Edit hours of sleep"
+                            className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm"
+                            onClick={() => {
+                              setSleepEditing(true);
+                              window.requestAnimationFrame(() => sleepInput.current?.focus());
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="inline-flex min-h-11 items-center rounded-full px-4 text-sm text-mute"
+                          onClick={() => setSleepOpen(false)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : null}
+                </div>
+              ) : bit.done ? null : bit.key === "fuel" ? (
                 <Link
                   href="/calories"
                   aria-label="Log food"
@@ -267,56 +372,6 @@ export default function OverviewPage() {
                 >
                   Add 250 ml of water
                 </button>
-              ) : bit.key === "sleep" ? (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    aria-label="Log sleep"
-                    className="inline-flex min-h-11 items-center rounded-full bg-acid px-4 text-sm text-ink"
-                    onClick={() => {
-                      setSleepHours(deviceSleep ? String(deviceSleepHours) : "7");
-                      setSleepOpen(true);
-                    }}
-                  >
-                    Log sleep
-                  </button>
-                  {sleepOpen ? (
-                    <form
-                      className="mt-3 space-y-2"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        const hours = deviceSleep ? deviceSleepHours : Number(sleepHours);
-                        if (!Number.isFinite(hours) || hours <= 0) return;
-                        store.logSleepHours(hours);
-                        setSleepOpen(false);
-                      }}
-                    >
-                      <label className="block text-xs text-mute" htmlFor="sleep-hours">
-                        Hours of sleep
-                      </label>
-                      <input
-                        id="sleep-hours"
-                        aria-label="Hours of sleep"
-                        className="min-h-11 w-full rounded-xl border border-line bg-ink px-3"
-                        type="number"
-                        min="0"
-                        max="16"
-                        step="0.5"
-                        value={deviceSleep ? String(deviceSleepHours) : sleepHours}
-                        readOnly={deviceSleep}
-                        onChange={(event) => setSleepHours(event.target.value)}
-                      />
-                      <p className="text-xs text-mute">
-                        {deviceSleep
-                          ? `${body.ble.links > 0 ? "Strap" : "Health"} data replaced the 7 hour default.`
-                          : "Default is 7 hours."}
-                      </p>
-                      <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm">
-                        Save sleep
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
               ) : (
                 <div className="mt-3">
                   <button
@@ -536,7 +591,7 @@ export default function OverviewPage() {
           <div className="mt-4">
             <Progress value={hydro} tone="sky" />
           </div>
-          <div className="mt-5 flex gap-2">
+          <div className="mt-5 flex flex-wrap gap-2">
             {waterAdds(store.prefs.units)
               .slice(1, 4)
               .map((row) => (

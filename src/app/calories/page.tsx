@@ -33,7 +33,7 @@ const GROUPS: Array<PantryGroup | "All"> = ["All", ...PANTRY_GROUPS];
 export default function CaloriesPage() {
   const store = usePact();
   const goal = useGoal();
-  const totals = mealTotals(store.meals);
+  const totals = mealTotals(store.todayMeals);
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanPhase, setScanPhase] = useState<string | null>(null);
@@ -635,11 +635,11 @@ export default function CaloriesPage() {
           </Card>
 
           <Card className="divide-y divide-line">
-            {store.meals.length === 0 ? (
+            {store.todayMeals.length === 0 ? (
               <p className="p-6 text-sm text-mute">No meals yet. Scan lunch, log an ingredient, or enter macros.</p>
             ) : (
-              store.meals.map((m) => (
-                <div key={m.id} className="flex items-center gap-4 px-5 py-4">
+              store.todayMeals.map((m) => (
+                <div key={m.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
                   {m.photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={m.photo} alt="" className="h-14 w-14 rounded-xl object-cover" />

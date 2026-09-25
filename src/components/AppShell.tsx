@@ -75,7 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { body } = useLiveBody();
   const [open, setOpen] = useState(false);
   const scored = hasPactData(store);
-  const score = pactScore({ ...store, recovery: body.recovery, sleepScore: body.sleepScore });
+  const score = pactScore({ ...store, meals: store.todayMeals, recovery: body.recovery, sleepScore: body.sleepScore });
   const unread = Object.values(store.messages).reduce(
     (n, thread) => n + thread.filter((m) => m.from !== "me").length,
     0,

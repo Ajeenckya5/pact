@@ -22,7 +22,7 @@ import { useMemo, useRef, useState } from "react";
 export default function CoachPage() {
   const store = usePact();
   const goal = useGoal();
-  const totals = mealTotals(store.meals);
+  const totals = mealTotals(store.todayMeals);
   const { weather, error: weatherError } = useLiveWeather();
   const { body } = useLiveBody();
   const [text, setText] = useState("");
@@ -105,11 +105,11 @@ export default function CoachPage() {
             Coach scores today&apos;s session from the strap you paired, your log, protein left, and the weather. The
             pick matches Overview.
             Name a lift or a food and it will gate the answer on those numbers. App how-tos live in{" "}
-            <Link href="/faq" className="text-acid">
+            <Link href="/faq" className="text-acid underline underline-offset-2">
               FAQ
             </Link>
             . People live in{" "}
-            <Link href="/chat" className="text-acid">
+            <Link href="/chat" className="text-acid underline underline-offset-2">
               Chat
             </Link>
             .
@@ -178,7 +178,7 @@ export default function CoachPage() {
                         className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm ${mine ? "bg-acid text-ink" : "bg-white/8"}`}
                       >
                         <p className="whitespace-pre-wrap">{m.text}</p>
-                        <p className={`mt-1 text-[10px] ${mine ? "text-ink/60" : "text-mute"}`}>
+                        <p className={`mt-1 text-[10px] ${mine ? "text-ink" : "text-mute"}`}>
                           {mine ? "you" : m.topic ?? "coach"} · <span suppressHydrationWarning>{clock(m.at)}</span>
                         </p>
                       </div>

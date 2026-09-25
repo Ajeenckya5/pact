@@ -28,6 +28,8 @@ import { tap } from "./experience";
 import { askPersistentStorage, clearAccount, readAccount, writeAccount } from "./persist";
 import { entriesToday, latestUndo, removedLabel, undoLabel as labelForUndo } from "./undo-log";
 import { pushSip, totalWater, type WaterSip } from "./water-log";
+import { onPactDay, pactToday, rollPactDay } from "./pact-day";
+import { SLEEP_GOAL_MIN, applyDeviceSleep, applySleep, hoursFromMinutes, type SleepSource } from "./sleep-source";
 import { emptyScore, friendFromContact, mergeContacts, seedScore } from "./training";
 import { migrateConnectedWearables } from "./wearable-live";
 import type {
@@ -90,6 +92,10 @@ export type PactState = {
   strain: number;
   sleepScore: number;
   sleepMin: number;
+  /** Where sleepMin came from: "user", "demo", or a device id. */
+  sleepSource?: SleepSource | null;
+  /** The pact day these boxes belong to (03:00 to 03:00 local). */
+  day?: string;
   hrv: number;
   rhr: number;
   steps: number;
@@ -264,6 +270,7 @@ const initial: PactState = {
   strain: 11.2,
   sleepScore: 84,
   sleepMin: 442,
+  sleepSource: "demo",
   hrv: 62,
   rhr: 51,
   steps: 9640,
@@ -283,6 +290,16 @@ const initial: PactState = {
 };
 
 const sampleAccount: PactState = initial;
+
+/** Rows that count toward today's boxes. Sample data is one fixed day, so all of it counts. */
+function todayRows<T extends { at: string }>(s: { demo: boolean }, rows: T[]): T[] {
+  return s.demo ? rows : onPactDay(rows, pactToday());
+}
+
+function rollDay(s: PactState, now = new Date()): PactState {
+  const g = goalById(s.goal);
+  return rollPactDay(s, { waterMl: g.waterMl, protein: g.protein }, now);
+}
 
 function blankAccount(): PactState {
   return {
@@ -308,6 +325,7 @@ function blankAccount(): PactState {
     strain: 0,
     sleepScore: 0,
     sleepMin: 0,
+    sleepSource: null,
     hrv: 0,
     rhr: 0,
     steps: 0,
@@ -371,7 +389,12 @@ type Store = PactState & {
   setCheckin: (key: keyof PactState["checkins"], v: boolean) => void;
   addReading: (min: number) => void;
   logWorkout: (entry: Omit<WorkoutLog, "id" | "at">) => void;
-  logSleepHours: (hours: number) => void;
+  /** Today's meals only. `meals` keeps the last 30 days for history and Repeat last. */
+  todayMeals: MealLog[];
+  /** Save last night's sleep. A manual entry or a correction is source "user". */
+  logSleep: (minutes: number, source?: SleepSource) => void;
+  /** For a Health or strap sync. Never overwrites the user's own correction for the night. */
+  setDeviceSleep: (minutes: number, source: SleepSource) => void;
   completeWorkout: (
     kcal: number,
     minutes: number,
@@ -414,7 +437,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
         if (alive && parsed?.schema === 2) {
           setState((s) => {
             const parsedGoal = parsed.goal ?? s.goal;
-            return {
+            const merged: PactState = {
               ...s,
               ...parsed,
               history: parsed.history?.length ? parsed.history : s.history,
@@ -435,7 +458,9 @@ export function PactProvider({ children }: { children: ReactNode }) {
               blocked: parsed.blocked ?? [],
               reports: parsed.reports ?? [],
               deviceId: parsed.deviceId || s.deviceId,
+              sleepSource: parsed.sleepSource ?? (parsed.demo ? "demo" : null),
             };
+            return rollDay(merged);
           });
         }
       } catch {
@@ -448,6 +473,21 @@ export function PactProvider({ children }: { children: ReactNode }) {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    const roll = () => setState((s) => rollDay(s));
+    roll();
+    const timer = window.setInterval(roll, 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") roll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ready]);
 
   useEffect(() => {
     if (!ready) return;
@@ -516,7 +556,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
         }
         update((s) => {
           const waterLog = (s.waterLog ?? []).filter((row) => row.id !== sip.id);
-          const waterMl = totalWater(waterLog);
+          const waterMl = totalWater(todayRows(s, waterLog));
           return {
             ...s,
             waterLog,
@@ -526,7 +566,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
         });
         offerRedo((current) => {
           const nextLog = [...(current.waterLog ?? []).filter((row) => row.id !== sip.id), sip];
-          const ml = totalWater(nextLog);
+          const ml = totalWater(todayRows(current, nextLog));
           return {
             ...current,
             waterLog: nextLog,
@@ -545,7 +585,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
           return {
             ...s,
             meals,
-            checkins: { ...s.checkins, fuel: mealTotals(meals).protein >= goalById(s.goal).protein },
+            checkins: { ...s.checkins, fuel: mealTotals(todayRows(s, meals)).protein >= goalById(s.goal).protein },
           };
         });
         offerRedo((current) => {
@@ -553,7 +593,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
           return {
             ...current,
             meals: nextMeals,
-            checkins: { ...current.checkins, fuel: mealTotals(nextMeals).protein >= goalById(current.goal).protein },
+            checkins: { ...current.checkins, fuel: mealTotals(todayRows(current, nextMeals)).protein >= goalById(current.goal).protein },
           };
         });
       }
@@ -561,6 +601,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
     };
     return {
       ...state,
+      todayMeals: todayRows(state, state.meals),
       ready,
       toast,
       flash,
@@ -594,7 +635,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
             createdAt: at,
             deviceId: s.deviceId,
           });
-          const waterMl = totalWater(waterLog);
+          const waterMl = totalWater(todayRows(s, waterLog));
           const goal = goalById(s.goal).waterMl;
           return {
             ...s,
@@ -612,18 +653,21 @@ export function PactProvider({ children }: { children: ReactNode }) {
       canRedo,
       undoWater: undoLatest,
       loadSample: () => {
-        update((s) => ({ ...sampleAccount, prefs: { ...sampleAccount.prefs, onboarded: s.prefs.onboarded } }));
+        update((s) => ({
+          ...sampleAccount,
+          prefs: { ...sampleAccount.prefs, onboarded: s.prefs.onboarded, theme: s.prefs.theme, units: s.prefs.units },
+        }));
         flash("Sample data on");
       },
       leaveSample: () => {
-        update((s) => ({ ...blankAccount(), prefs: { ...blankAccount().prefs, onboarded: true, units: s.prefs.units } }));
+        update((s) => ({ ...blankAccount(), prefs: { ...blankAccount().prefs, onboarded: true, units: s.prefs.units, theme: s.prefs.theme } }));
         flash("Sample data off");
       },
       addMeal: (meal) => {
         update((s) => {
           const at = new Date().toISOString();
           const meals = [{ ...meal, id: uid(), at, createdAt: at, deviceId: s.deviceId }, ...s.meals];
-          const tot = mealTotals(meals);
+          const tot = mealTotals(todayRows(s, meals));
           const g = goalById(s.goal);
           return { ...s, meals, checkins: { ...s.checkins, fuel: tot.protein >= g.protein } };
         });
@@ -666,7 +710,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
         };
         update((s) => {
           const meals = [meal, ...s.meals];
-          const tot = mealTotals(meals);
+          const tot = mealTotals(todayRows(s, meals));
           const g = goalById(s.goal);
           return { ...s, meals, checkins: { ...s.checkins, fuel: tot.protein >= g.protein } };
         });
@@ -676,7 +720,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
       removeMeal: (id) =>
         update((s) => {
           const meals = s.meals.filter((m) => m.id !== id);
-          const tot = mealTotals(meals);
+          const tot = mealTotals(todayRows(s, meals));
           const g = goalById(s.goal);
           return { ...s, meals, checkins: { ...s.checkins, fuel: tot.protein >= g.protein } };
         }),
@@ -956,7 +1000,7 @@ export function PactProvider({ children }: { children: ReactNode }) {
           const last = s.meals[0];
           if (!last) return s;
           const meals = [{ ...last, id: uid(), at: new Date().toISOString() }, ...s.meals];
-          const tot = mealTotals(meals);
+          const tot = mealTotals(todayRows(s, meals));
           const g = goalById(s.goal);
           return { ...s, meals, checkins: { ...s.checkins, fuel: tot.protein >= g.protein } };
         });
@@ -973,16 +1017,14 @@ export function PactProvider({ children }: { children: ReactNode }) {
         update((s) => applyWorkoutLog(s, entry));
         flash(`Logged ${entry.title} · ${entry.minutes} min`);
       },
-      logSleepHours: (hours) => {
-        const minutes = Math.max(0, Math.round(hours * 60));
-        update((s) => ({
-          ...s,
-          sleepMin: minutes,
-          checkins: { ...s.checkins, sleep: minutes >= 7 * 60 },
-        }));
-        flash(minutes >= 7 * 60 ? `Logged ${hours} h of sleep` : `Logged ${hours} h. Sleep 7h+ is still open.`);
-        if (minutes >= 7 * 60) tap();
+      logSleep: (minutes, source = "user") => {
+        const safe = Math.max(0, Math.round(minutes));
+        const hours = hoursFromMinutes(safe);
+        update((s) => applySleep(s, safe, source));
+        flash(safe >= SLEEP_GOAL_MIN ? `Logged ${hours} h of sleep` : `Logged ${hours} h. Sleep 7h+ is still open.`);
+        if (safe >= SLEEP_GOAL_MIN) tap();
       },
+      setDeviceSleep: (minutes, source) => update((s) => applyDeviceSleep(s, minutes, source)),
       completeWorkout: (kcal, minutes, meta) => {
         update((s) =>
           applyWorkoutLog(s, {

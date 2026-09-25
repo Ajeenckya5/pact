@@ -28,7 +28,7 @@ export default function ThreadPage() {
     return (
       <div className="py-16 text-center">
         <p>No such thread.</p>
-        <Link href="/chat" className="text-acid">
+        <Link href="/chat" className="text-acid underline underline-offset-2">
           Inbox
         </Link>
       </div>
@@ -51,7 +51,7 @@ export default function ThreadPage() {
           <h1 className="font-display text-3xl">{friend.name}</h1>
           <p className="text-sm text-mute">@{friend.handle} · A photo stays on this device</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button tone="ghost" disabled={blocked} onClick={() => store.nudge(friend.id)}>
             Nudge
           </Button>
@@ -76,7 +76,7 @@ export default function ThreadPage() {
                   <img src={m.photo} alt="" className="mb-2 max-h-56 rounded-xl object-cover" />
                 ) : null}
                 <p>{m.text}</p>
-                <p className={`mt-1 text-[10px] ${mine ? "text-ink/60" : "text-mute"}`}>
+                <p className={`mt-1 text-[10px] ${mine ? "text-ink" : "text-mute"}`}>
                   {m.kind !== "text" ? `${m.kind} · ` : ""}
                   {clock(m.at)}
                   {mine && m.status === "seen" ? " · Seen" : ""}
@@ -144,7 +144,7 @@ export default function ThreadPage() {
           </form>
         ) : null}
       </div>
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-end gap-2">
         <ClipScanButton
           label="Photo"
           onScan={(scan, _file, preview) => {
@@ -155,15 +155,17 @@ export default function ThreadPage() {
             store.sendMessage(id, caption, "photo", preview);
           }}
         />
-        <Field
-          value={text}
-          label="Message"
-          placeholder={`Message ${friend.name.split(" ")[0]}`}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") send();
-          }}
-        />
+        <div className="min-w-0 flex-1 basis-40">
+          <Field
+            value={text}
+            label="Message"
+            placeholder={`Message ${friend.name.split(" ")[0]}`}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") send();
+            }}
+          />
+        </div>
         <Button onClick={send}>Send</Button>
       </div>
     </div>

@@ -11,7 +11,7 @@ export const color = {
   done: "#8fbf7a",
   sky: "#5cc8ff",
   violet: "#8b7cff",
-  heat: "#c24d32",
+  heat: "#ff8f73",
   gold: "#e0aa55",
   paper: "#f6efe6",
   inkOnPaper: "#2c2118",

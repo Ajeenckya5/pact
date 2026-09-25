@@ -58,7 +58,7 @@ function MapInner() {
       {!locOn ? (
         <Card className="p-4 text-sm">
           Device GPS is off. Search a city above, or turn sharing on in{" "}
-          <Link href="/privacy" className="text-acid">
+          <Link href="/privacy" className="text-acid underline underline-offset-2">
             Privacy
           </Link>
           .

@@ -56,7 +56,7 @@ function Plate({
       <div
         className={cn(
           "relative overflow-hidden rounded-2xl bg-[#efe8d6]",
-          size === "card" ? "h-24 w-[4.5rem]" : "h-72 w-44 sm:h-80 sm:w-48",
+          size === "card" ? "h-24 w-[4.5rem]" : "aspect-[11/18] w-[min(11rem,42vw)] sm:aspect-[3/5] sm:w-[min(12rem,42vw)]",
         )}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

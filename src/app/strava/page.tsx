@@ -45,7 +45,7 @@ export default function StravaPage() {
                 <h2 className="text-xl">{a.name}</h2>
                 <p className="text-sm text-mute">{a.when}</p>
               </div>
-              <div className="flex gap-6 font-mono text-sm">
+              <div className="flex flex-wrap gap-6 font-mono text-sm">
                 <div>
                   <p className="text-xs text-mute">Distance</p>
                   <p>{a.km} km</p>

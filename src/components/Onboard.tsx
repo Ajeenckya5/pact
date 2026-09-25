@@ -4,7 +4,10 @@ import { Button, Field } from "@/components/ui";
 import { GOALS } from "@/lib/data";
 import { usePact } from "@/lib/store";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const FOCUSABLE =
+  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 export function Onboard() {
   const store = usePact();
@@ -12,6 +15,7 @@ export function Onboard() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function show() {
@@ -28,16 +32,57 @@ export function Onboard() {
     return () => window.clearTimeout(t);
   }, [store.ready, store.prefs.onboarded]);
 
-  if (!open) return null;
+  // Modal for keyboard users: focus moves in, Tab stays in, Escape means Later, focus returns on close.
+  useEffect(() => {
+    if (!open) return;
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => before?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const items = () => Array.from(panel.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
+    items()[0]?.focus();
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        panel.current?.querySelector<HTMLButtonElement>("[data-onboard-later]")?.click();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const list = items();
+      if (!list.length) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !panel.current?.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !panel.current?.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, step]);
 
   function close() {
     store.setPrefs({ onboarded: true });
     setOpen(false);
   }
 
+  if (!open) return null;
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-4 sm:items-center">
-      <div role="dialog" aria-labelledby="onboard-title" className="w-full max-w-md rounded-3xl border border-line bg-panel p-6">
+      <div
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboard-title"
+        className="w-full max-w-md rounded-3xl border border-line bg-panel p-6"
+      >
         <p className="text-[11px] uppercase tracking-[0.2em] text-mute">Start · {step + 1}/3</p>
         {step === 0 ? (
           <>
@@ -93,7 +138,7 @@ export function Onboard() {
           </>
         ) : null}
         <div className="mt-6 flex gap-2">
-          <Button type="button" tone="quiet" onClick={close}>
+          <Button type="button" tone="quiet" onClick={close} data-onboard-later>
             Later
           </Button>
           {step < 2 ? (

@@ -12,6 +12,7 @@
   --pact-acid: #e8836a;
   --pact-done: #8fbf7a;
   --pact-gold: #e0aa55;
+  --pact-heat: #ff8f73;
 }
 
 @theme inline {
@@ -28,7 +29,7 @@
   --color-gold: var(--pact-gold);
   --color-violet: #8b7cff;
   --color-sky: #5cc8ff;
-  --color-heat: #c24d32;
+  --color-heat: var(--pact-heat);
   --font-sans: var(--font-nunito);
   --font-display: var(--font-fraunces);
   --font-mono: var(--font-geist-mono);
@@ -48,6 +49,13 @@ body {
 
 .font-display {
   font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+}
+
+/* Large type at 200% text size must wrap inside a 390 px screen, even a single long word. */
+h1,
+h2 {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .leaflet-container {
@@ -100,9 +108,11 @@ html.light {
   --pact-line: #eadfd2;
   --pact-cream: #2c2118;
   --pact-mute: #6f6256;
-  --pact-acid: #c24d32;
+  /* Darker than the dark theme so cream text on accent and gold text on paper pass WCAG AA. */
+  --pact-acid: #b3452b;
   --pact-done: #3f6b4c;
-  --pact-gold: #c4842a;
+  --pact-gold: #946017;
+  --pact-heat: #983319;
 }
 
 html.reduce-motion *,

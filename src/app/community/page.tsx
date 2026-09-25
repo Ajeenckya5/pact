@@ -40,7 +40,7 @@ export default function CommunityPage() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={previewSrc(photo)} alt="" className="mt-3 max-h-48 w-full rounded-2xl object-cover" />
         ) : null}
-        <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <ClipScanButton
             label="Scan & attach"
             onScan={(scan, _file, preview) => {

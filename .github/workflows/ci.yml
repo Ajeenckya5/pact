@@ -19,3 +19,22 @@ jobs:
       - run: pnpm run lint
       - run: pnpm exec tsc --noEmit
       - run: pnpm test
+
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Design gate (axe light and dark, 200% text, keyboard, daily boxes)
+        run: pnpm run test:gate
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: gate-traces
+          path: test-results
+          retention-days: 7

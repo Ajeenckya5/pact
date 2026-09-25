@@ -91,14 +91,14 @@ export default function FriendsPage() {
         <p className="text-sm text-mute">No contacts yet. On a phone that supports the contact picker, sync brings in people you choose.</p>
       )}
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 [&>*]:min-w-0">
         {circle.map((f) => (
           <Card key={f.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/8 font-display text-lg">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/8 font-display text-lg">
                 {initials(f.name)}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">
                   {f.name}{" "}
                   {f.online && store.privacy.activityStatus ? (
@@ -110,7 +110,7 @@ export default function FriendsPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               {store.privacy.recovery !== "private" ? (
                 <div className="text-right">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-mute">Recovery</p>

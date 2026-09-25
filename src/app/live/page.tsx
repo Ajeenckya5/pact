@@ -82,7 +82,7 @@ export default function LivePage() {
       ) : (
         <Card className="p-6 text-sm text-mute">
           Allow location (Privacy → approximate or precise) so the trail can draw.{" "}
-          <Link href="/privacy" className="text-acid">
+          <Link href="/privacy" className="text-acid underline underline-offset-2">
             Privacy
           </Link>
         </Card>

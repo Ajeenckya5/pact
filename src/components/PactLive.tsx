@@ -58,9 +58,10 @@ type PartnerState = {
   partner: Boxes;
   pulse: Partial<Record<keyof Boxes, number>>;
   live: "off" | "open";
+  checkedAt: number | null;
 };
 
-const PartnerCtx = createContext<PartnerState>({ partner: EMPTY, pulse: {}, live: "off" });
+const PartnerCtx = createContext<PartnerState>({ partner: EMPTY, pulse: {}, live: "off", checkedAt: null });
 
 export function usePartner() {
   return useContext(PartnerCtx);
@@ -72,10 +73,11 @@ export function PactLive({ children }: { children: ReactNode }) {
   const celebrate = useSyncExternalStore(subscribeParty, partySnapshot, () => "off" as const);
   const outbox = useSyncExternalStore(subscribeOutbox, outboxSnapshot, () => EMPTY_OUT);
   const [flags, setFlags] = useState<Flags>(() => readCachedFlags());
-  const [partner, setPartner] = useState<{ boxes: Boxes; pulse: Partial<Record<keyof Boxes, number>>; live: "off" | "open" }>({
+  const [partner, setPartner] = useState<{ boxes: Boxes; pulse: Partial<Record<keyof Boxes, number>>; live: "off" | "open"; checkedAt: number | null }>({
     boxes: EMPTY,
     pulse: {},
     live: "off",
+    checkedAt: null,
   });
   const prevBoxes = useRef<string | null>(null);
   const prevAll = useRef(false);
@@ -223,7 +225,7 @@ export function PactLive({ children }: { children: ReactNode }) {
   }, [allIn, store.prefs.reducedMotion, flags.moments]);
 
   return (
-    <PartnerCtx.Provider value={{ partner: partner.boxes, pulse: partner.pulse, live: partner.live }}>
+    <PartnerCtx.Provider value={{ partner: partner.boxes, pulse: partner.pulse, live: partner.live, checkedAt: partner.checkedAt }}>
       {children}
       {outbox.failed > 0 ? (
         <button
@@ -244,7 +246,16 @@ function applyFrame(
   kind: string,
   payload: unknown,
   partnerRef: { current: Boxes },
-  setPartner: (value: { boxes: Boxes; pulse: Partial<Record<keyof Boxes, number>>; live: "off" | "open" } | ((current: { boxes: Boxes; pulse: Partial<Record<keyof Boxes, number>>; live: "off" | "open" }) => { boxes: Boxes; pulse: Partial<Record<keyof Boxes, number>>; live: "off" | "open" })) => void,
+  setPartner: (
+    value:
+      | { boxes: Boxes; pulse: Partial<Record<keyof Boxes, number>>; live: "off" | "open"; checkedAt: number | null }
+      | ((current: { boxes: Boxes; pulse: Partial<Record<keyof Boxes, number>>; live: "off" | "open"; checkedAt: number | null }) => {
+          boxes: Boxes;
+          pulse: Partial<Record<keyof Boxes, number>>;
+          live: "off" | "open";
+          checkedAt: number | null;
+        }),
+  ) => void,
 ) {
   const record = (payload && typeof payload === "object" ? payload : {}) as {
     sleep?: boolean;
@@ -267,7 +278,15 @@ function applyFrame(
       if (partnerRef.current[key] !== next[key]) changed[key] = stamp;
     });
     partnerRef.current = next;
-    setPartner((current) => ({ ...current, boxes: next, pulse: { ...current.pulse, ...changed } }));
+    setPartner((current) => {
+      const checkedIn = (Object.keys(next) as (keyof Boxes)[]).some((key) => next[key] && !current.boxes[key]);
+      return {
+        ...current,
+        boxes: next,
+        pulse: { ...current.pulse, ...changed },
+        checkedAt: checkedIn ? stamp : current.checkedAt,
+      };
+    });
   } else if (kind === "nudge") {
     liveApi.flash("Your partner nudged you");
   } else if (kind === "seen" && record.threadId && record.messageId) {

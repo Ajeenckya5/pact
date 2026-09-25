@@ -23,7 +23,7 @@ export function TodaySession() {
   const wx = useLiveWeather();
   const { body } = useLiveBody();
   const trained = todayLogs(store.workoutLogs);
-  const totals = mealTotals(store.meals);
+  const totals = mealTotals(store.todayMeals);
 
   const suggestion = useMemo(
     () =>

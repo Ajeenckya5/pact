@@ -82,13 +82,13 @@ export default function GroupWorkoutPage() {
         <ul className="mt-4 space-y-4">
           {board.map((row) => (
             <li key={row.id}>
-              <div className="mb-1 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <span className="w-6 font-mono text-sm text-mute">{row.place}</span>
                   <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-xs">
                     {initials(row.name)}
                   </span>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">
                       {row.name}
                       {row.id === "me" ? " · you" : ""}

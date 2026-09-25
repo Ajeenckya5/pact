@@ -134,7 +134,7 @@ export default function WearablesPage() {
               ].filter(Boolean)
             : [];
           return (
-            <Card key={w.id} className="flex items-start justify-between gap-4 p-5">
+            <Card key={w.id} className="flex flex-wrap items-start justify-between gap-4 p-5">
               <div>
                 <p className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-mute">
                   <span className={cn("h-1.5 w-1.5 rounded-full", link ? "bg-acid" : "bg-mute")} />
@@ -165,7 +165,7 @@ export default function WearablesPage() {
         <ul className="mt-4 divide-y divide-line">
           {feeds.map((f) => (
             <li key={f.id} className="flex items-center justify-between gap-3 py-3">
-              <div>
+              <div className="min-w-0">
                 <p>{f.name}</p>
                 <p className="text-xs text-mute">{f.use}</p>
               </div>

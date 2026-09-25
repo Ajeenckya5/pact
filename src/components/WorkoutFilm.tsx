@@ -82,7 +82,7 @@ function FilmBody({ workout }: { workout: Workout }) {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="space-y-5 lg:col-span-2">
           <div>
             <Eyebrow>
@@ -294,7 +294,7 @@ function DirectoryBody({ ex }: { ex: LiveExercise }) {
       <Link href="/workouts?tab=Library" className="text-sm text-mute hover:text-cream">
         ← Library
       </Link>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="space-y-5 lg:col-span-2">
           <div>
             <Eyebrow>Directory · {ex.category}</Eyebrow>

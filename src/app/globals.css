@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07080a;
-  --foreground: #f3efe6;
+  --background: #241c16;
+  --foreground: #f6efe6;
+  --pact-ink: #241c16;
+  --pact-panel: #31261e;
+  --pact-card: #31261e;
+  --pact-line: #4a3b30;
+  --pact-cream: #f6efe6;
+  --pact-mute: #cbbbaa;
+  --pact-acid: #e8836a;
+  --pact-done: #8fbf7a;
+  --pact-gold: #e0aa55;
+  --pact-heat: #ff8f73;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-ink: #07080a;
-  --color-panel: #0e1116;
-  --color-card: #141821;
-  --color-line: #262c38;
-  --color-cream: #f3efe6;
-  --color-mute: #8d95a8;
-  --color-acid: #d6ff3f;
+  --color-ink: var(--pact-ink);
+  --color-panel: var(--pact-panel);
+  --color-card: var(--pact-card);
+  --color-line: var(--pact-line);
+  --color-cream: var(--pact-cream);
+  --color-mute: var(--pact-mute);
+  --color-acid: var(--pact-acid);
+  --color-done: var(--pact-done);
+  --color-gold: var(--pact-gold);
   --color-violet: #8b7cff;
   --color-sky: #5cc8ff;
-  --color-heat: #ff6b4a;
-  --color-gold: #ffc857;
-  --font-sans: var(--font-outfit);
-  --font-display: var(--font-syne);
+  --color-heat: var(--pact-heat);
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-fraunces);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -33,11 +44,18 @@ body {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #262c38 transparent;
+  scrollbar-color: #4a3b30 transparent;
 }
 
 .font-display {
   font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+}
+
+/* Large type at 200% text size must wrap inside a 390 px screen, even a single long word. */
+h1,
+h2 {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .leaflet-container {
@@ -52,20 +70,20 @@ body {
 
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background: #141821;
-  color: #f3efe6;
+  background: #31261e;
+  color: #f6efe6;
   border-radius: 16px;
 }
 
 .leaflet-control-attribution {
   background: transparent;
-  color: #8d95a8;
+  color: #cbbbaa;
 }
 
 @keyframes pact-pop {
   0% {
     transform: scale(0.96);
-    background-color: rgba(214, 255, 63, 0.35);
+    background-color: rgba(232, 131, 106, 0.35);
   }
   100% {
     transform: scale(1);
@@ -82,14 +100,19 @@ html.reduce-motion .pact-pop {
 }
 
 html.light {
-  --background: #f6f1e7;
-  --foreground: #1a1814;
-  --color-ink: #f6f1e7;
-  --color-panel: #fffdf8;
-  --color-card: #fffdf8;
-  --color-line: #ddd4c4;
-  --color-cream: #1a1814;
-  --color-mute: #5c564c;
+  --background: #f6efe6;
+  --foreground: #2c2118;
+  --pact-ink: #f6efe6;
+  --pact-panel: #fffaf4;
+  --pact-card: #fffaf4;
+  --pact-line: #eadfd2;
+  --pact-cream: #2c2118;
+  --pact-mute: #6f6256;
+  /* Darker than the dark theme so cream text on accent and gold text on paper pass WCAG AA. */
+  --pact-acid: #b3452b;
+  --pact-done: #3f6b4c;
+  --pact-gold: #946017;
+  --pact-heat: #983319;
 }
 
 html.reduce-motion *,

@@ -75,7 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { body } = useLiveBody();
   const [open, setOpen] = useState(false);
   const scored = hasPactData(store);
-  const score = pactScore({ ...store, recovery: body.recovery, sleepScore: body.sleepScore });
+  const score = pactScore({ ...store, meals: store.todayMeals, recovery: body.recovery, sleepScore: body.sleepScore });
   const unread = Object.values(store.messages).reduce(
     (n, thread) => n + thread.filter((m) => m.from !== "me").length,
     0,
@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-ink text-cream">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(1200px_circle_at_10%_-10%,rgba(214,255,63,0.08),transparent_40%),radial-gradient(800px_circle_at_90%_0%,rgba(92,200,255,0.07),transparent_35%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(900px_circle_at_0%_-10%,rgba(194,77,50,0.14),transparent_42%),radial-gradient(700px_circle_at_100%_0%,rgba(63,107,76,0.12),transparent_36%)]" />
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex w-[272px] flex-col border-r border-line bg-panel/95 backdrop-blur-xl transition-transform lg:translate-x-0",
@@ -176,7 +176,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <PagesHome />
         {store.demo ? (
-          <p className="bg-[repeating-linear-gradient(135deg,rgba(214,255,63,0.22)_0_10px,transparent_10px_20px)] px-4 py-2 text-center text-xs font-semibold tracking-wide text-acid">
+          <p className="bg-[repeating-linear-gradient(135deg,rgba(194,77,50,0.18)_0_10px,transparent_10px_20px)] px-4 py-2 text-center text-xs font-semibold tracking-wide text-acid">
             Sample data
           </p>
         ) : null}

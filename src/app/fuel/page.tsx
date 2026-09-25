@@ -153,8 +153,8 @@ function FuelInner() {
                 const label = ing?.name ?? c.customName ?? c.ingredientId.replace(/^custom:/, "");
                 const atStore = !ing || inventory.length === 0 || inventory.includes(ing.id);
                 return (
-                  <li key={c.ingredientId} className="flex items-center gap-3 py-3">
-                    <div className="flex-1">
+                  <li key={c.ingredientId} className="flex flex-wrap items-center gap-3 py-3">
+                    <div className="min-w-0 flex-1">
                       <p>{label}</p>
                       <p className="text-xs text-mute">
                         {ing ? `${ing.aisle} · $${ing.price.toFixed(2)}` : c.grams ? `${Math.round(c.grams)}g scaled` : "Custom"}

@@ -84,7 +84,7 @@ export function LocationBar({ hint }: { hint?: string }) {
       {here.denied && !here.ready ? (
         <p className="mt-3 text-xs text-mute">
           Location is off or blocked. Search a city, or turn sharing on in{" "}
-          <Link href="/privacy" className="text-acid">
+          <Link href="/privacy" className="text-acid underline underline-offset-2">
             Privacy
           </Link>
           .

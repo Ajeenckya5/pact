@@ -9,7 +9,7 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
-    "@kingstinct/react-native-healthkit": "^9.0.0",
+    "@kingstinct/react-native-healthkit": "^16.0.0",
     "expo": "~53.0.0",
     "expo-camera": "~16.1.0",
     "expo-constants": "~17.1.8",

@@ -29,6 +29,6 @@
     "react-native-ble-plx": "^3.5.0",
     "react-native-health-connect": "^3.3.0",
     "react-native-safe-area-context": "^5.4.0",
-    "react-native-screens": "~4.11.1"
+    "react-native-screens": "~4.28.0"
   }
 }

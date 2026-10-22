@@ -81,6 +81,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     0,
   );
 
+  if (path === "/directions" || path.startsWith("/directions/")) return children;
+
   return (
     <div className="min-h-dvh bg-ink text-cream">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(1200px_circle_at_10%_-10%,rgba(214,255,63,0.08),transparent_40%),radial-gradient(800px_circle_at_90%_0%,rgba(92,200,255,0.07),transparent_35%)]" />
